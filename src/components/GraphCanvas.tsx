@@ -6,6 +6,8 @@ import { ReplaySource } from "../sources/replay";
 import { TrafficSource } from "../types/graph";
 import { useNetScopeStore } from "../store/useNetScopeStore";
 import { recorder } from "../services/recorder";
+import { threatEngine } from "../services/threatEngine";
+
 
 export const GraphCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -72,7 +74,9 @@ export const GraphCanvas: React.FC = () => {
         }
 
         engine.updateGraph(filteredNodes, linksList, currentStore.layoutMode);
+        threatEngine.analyzeTopology(nodesList, linksList);
       });
+
 
 
       source.start();

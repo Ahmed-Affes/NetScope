@@ -3,6 +3,8 @@ pub mod commands;
 pub mod events;
 pub mod model;
 pub mod sockets;
+pub mod threats;
+
 
 use tauri_specta::{collect_commands, Builder};
 
