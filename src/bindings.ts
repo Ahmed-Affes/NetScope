@@ -99,5 +99,39 @@ export const commands = {
     }
     return { nodes: [], links: [] };
   },
+
+  async getCaptureStatus(): Promise<{
+    isAvailable: boolean;
+    isActive: boolean;
+    driverName: string;
+    error: string | null;
+    interfaces: string[];
+  }> {
+    if (isTauriEnvironment()) {
+      return await invoke("get_capture_status");
+    }
+    return {
+      isAvailable: false,
+      isActive: false,
+      driverName: "None detected (Web Preview)",
+      error: "Npcap driver required for raw packet capture",
+      interfaces: ["Ethernet", "Wi-Fi", "Tailscale", "Loopback"],
+    };
+  },
+
+  async startCapture(interfaceName?: string): Promise<string> {
+    if (isTauriEnvironment()) {
+      return await invoke("start_capture", { interfaceName });
+    }
+    return `Capture started on ${interfaceName || "Default"}`;
+  },
+
+  async stopCapture(): Promise<string> {
+    if (isTauriEnvironment()) {
+      return await invoke("stop_capture");
+    }
+    return "Capture stopped";
+  },
 };
+
 

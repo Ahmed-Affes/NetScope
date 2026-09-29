@@ -1,3 +1,4 @@
+pub mod capture;
 pub mod commands;
 pub mod events;
 pub mod model;
@@ -16,6 +17,9 @@ pub fn run() {
             commands::set_traffic_mode,
             commands::get_socket_delta,
             commands::get_socket_snapshot,
+            commands::get_capture_status,
+            commands::start_capture,
+            commands::stop_capture,
         ]);
 
     #[cfg(debug_assertions)]

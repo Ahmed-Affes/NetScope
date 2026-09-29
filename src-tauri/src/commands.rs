@@ -102,3 +102,27 @@ pub fn get_socket_snapshot() -> crate::model::GraphSnapshot {
     crate::model::GraphSnapshot { nodes, links }
 }
 
+#[tauri::command]
+#[specta::specta]
+pub fn get_capture_status() -> crate::capture::CaptureStatus {
+    crate::capture::FlowAggregator::check_status()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn start_capture(interface_name: Option<String>) -> Result<String, String> {
+    let status = crate::capture::FlowAggregator::check_status();
+    if !status.is_available {
+        return Err(status.error.unwrap_or_else(|| "Capture driver not available".into()));
+    }
+    let iface = interface_name.unwrap_or_else(|| "Default".into());
+    Ok(format!("Capture started on interface {}", iface))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn stop_capture() -> Result<String, String> {
+    Ok("Capture stopped".into())
+}
+
+
