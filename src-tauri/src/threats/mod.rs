@@ -41,7 +41,7 @@ impl ThreatEngine {
 
         let mut entropy = 0.0;
         for count in char_counts.values() {
-            let p = count / total;
+            let p: f64 = count / total;
             entropy -= p * p.log2();
         }
         entropy
