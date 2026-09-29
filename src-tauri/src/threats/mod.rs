@@ -144,8 +144,7 @@ impl ThreatEngine {
                 rule: "DNS Tunneling / Data Leak".into(),
                 node_id: Some(link.target.clone()),
                 link_id: Some(link.id.clone()),
-                description: "Anomalously high byte throughput observed on UDP/TCP port 53"
-                    .into(),
+                description: "Anomalously high byte throughput observed on UDP/TCP port 53".into(),
                 acked: false,
             });
         }
