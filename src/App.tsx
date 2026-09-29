@@ -11,7 +11,10 @@ import { NoPrivilegeBanner } from "./components/NoPrivilegeBanner";
 import { AlertFeed } from "./components/AlertFeed";
 import { Timeline } from "./components/Timeline";
 import { OnboardingModal } from "./components/OnboardingModal";
+import { RemoteViewerModal } from "./components/RemoteViewerModal";
 import { GraphCanvas } from "./components/GraphCanvas";
+
+
 
 import { useNetScopeStore } from "./store/useNetScopeStore";
 import { commands } from "./bindings";
@@ -98,6 +101,7 @@ export const App: React.FC = () => {
         <CommandPalette />
         <Timeline />
         <OnboardingModal />
+        <RemoteViewerModal />
       </div>
     </div>
   );

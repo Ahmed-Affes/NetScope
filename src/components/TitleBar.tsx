@@ -8,6 +8,7 @@ import {
   Minus,
   Search,
   ShieldAlert,
+  Smartphone,
   X,
 } from "lucide-react";
 
@@ -133,6 +134,16 @@ export const TitleBar: React.FC = () => {
             }`}
           />
           <span>{isRecording ? `REC ${formatTime(recordingSeconds)}` : "REC"}</span>
+        </button>
+
+        {/* Remote Viewer Button */}
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("netscope:open-remote-viewer"))}
+          className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-white/[0.03] border border-white/[0.06] text-slate-400 hover:text-cyan-300 hover:border-cyan-500/40 transition-all"
+          title="Stream Live Topology to Phone / Tablet (Supabase Realtime)"
+        >
+          <Smartphone className="w-3 h-3 text-cyan-400" />
+          <span>REMOTE</span>
         </button>
       </div>
 

@@ -8,6 +8,7 @@ import {
   Radio,
   Search,
   Shield,
+  Smartphone,
   Trash2,
 } from "lucide-react";
 
@@ -196,7 +197,18 @@ export const CommandPalette: React.FC = () => {
                 <Activity className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Show Onboarding Briefing</span>
               </Command.Item>
+              <Command.Item
+                onSelect={() => {
+                  window.dispatchEvent(new CustomEvent("netscope:open-remote-viewer"));
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Stream to Phone (Remote HUD Viewer)</span>
+              </Command.Item>
             </Command.Group>
+
 
           </Command.List>
         </Command>
