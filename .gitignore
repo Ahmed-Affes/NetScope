@@ -1,0 +1,19 @@
+# Node / pnpm
+node_modules/
+dist/
+.pnpm-debug.log*
+
+# Rust / Cargo
+target/
+src-tauri/target/
+Cargo.lock
+
+# Tauri build artifacts
+src-tauri/gen/
+
+# Environment / local configs
+.env
+.env.local
+.DS_Store
+Thumbs.db
+*.pdb
