@@ -77,4 +77,27 @@ export const commands = {
     }
     return `Mode switched to ${mode}`;
   },
+
+  async getSocketDelta(): Promise<any> {
+    if (isTauriEnvironment()) {
+      return await invoke("get_socket_delta");
+    }
+    return {
+      t: Date.now(),
+      addNodes: [],
+      updateNodes: [],
+      removeNodeIds: [],
+      addLinks: [],
+      updateLinks: [],
+      removeLinkIds: [],
+    };
+  },
+
+  async getSocketSnapshot(): Promise<{ nodes: any[]; links: any[] }> {
+    if (isTauriEnvironment()) {
+      return await invoke("get_socket_snapshot");
+    }
+    return { nodes: [], links: [] };
+  },
 };
+

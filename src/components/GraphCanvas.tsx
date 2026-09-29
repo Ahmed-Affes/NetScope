@@ -1,14 +1,16 @@
 import React, { useEffect, useRef } from "react";
 import { GraphEngine } from "../graph/GraphEngine";
 import { SimulatorSource } from "../sources/simulator";
+import { LiveSource } from "../sources/live";
+import { TrafficSource } from "../types/graph";
 import { useNetScopeStore } from "../store/useNetScopeStore";
 
 export const GraphCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<GraphEngine | null>(null);
-  const sourceRef = useRef<SimulatorSource | null>(null);
+  const sourceRef = useRef<TrafficSource | null>(null);
 
-  const { selectNode, selectLink, applyDelta, layoutMode } = useNetScopeStore();
+  const { selectNode, selectLink, applyDelta, layoutMode, trafficMode } = useNetScopeStore();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -20,7 +22,7 @@ export const GraphCanvas: React.FC = () => {
     });
     engineRef.current = engine;
 
-    const source = new SimulatorSource();
+    const source: TrafficSource = trafficMode === "live" ? new LiveSource() : new SimulatorSource();
     sourceRef.current = source;
 
     engine.init().then(async () => {
@@ -40,7 +42,7 @@ export const GraphCanvas: React.FC = () => {
 
       engine.updateGraph(snapshot.nodes, snapshot.links, layoutMode);
 
-      // Subscribe to 10 Hz deltas
+      // Subscribe to deltas
       source.onDelta((delta) => {
         if (!mounted) return;
         applyDelta(delta);
@@ -70,7 +72,7 @@ export const GraphCanvas: React.FC = () => {
       source.stop();
       engine.destroy();
     };
-  }, [applyDelta, selectNode, selectLink, layoutMode]);
+  }, [applyDelta, selectNode, selectLink, layoutMode, trafficMode]);
 
   return (
     <div

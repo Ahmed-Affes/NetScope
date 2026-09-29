@@ -82,3 +82,23 @@ pub fn clean_simulations() -> Result<String, String> {
 pub fn set_traffic_mode(mode: String) -> Result<String, String> {
     Ok(format!("Switched mode to {}", mode))
 }
+
+static SOCKET_POLLER: Mutex<Option<crate::sockets::SocketPoller>> = Mutex::new(None);
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_socket_delta() -> crate::model::GraphDelta {
+    let mut poller_guard = SOCKET_POLLER.lock().unwrap();
+    let poller = poller_guard.get_or_insert_with(crate::sockets::SocketPoller::new);
+    poller.poll_and_compute_delta()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_socket_snapshot() -> crate::model::GraphSnapshot {
+    let mut poller_guard = SOCKET_POLLER.lock().unwrap();
+    let poller = poller_guard.get_or_insert_with(crate::sockets::SocketPoller::new);
+    let (nodes, links) = poller.get_snapshot();
+    crate::model::GraphSnapshot { nodes, links }
+}
+

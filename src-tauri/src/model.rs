@@ -167,3 +167,11 @@ pub struct AppInfo {
     pub mode: String,
     pub is_elevated: bool,
 }
+
+#[derive(Serialize, Deserialize, specta::Type, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphSnapshot {
+    pub nodes: Vec<GraphNode>,
+    pub links: Vec<GraphLink>,
+}
+

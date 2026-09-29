@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod events;
 pub mod model;
+pub mod sockets;
 
 use tauri_specta::{collect_commands, Builder};
 
@@ -13,6 +14,8 @@ pub fn run() {
             commands::trigger_simulation,
             commands::clean_simulations,
             commands::set_traffic_mode,
+            commands::get_socket_delta,
+            commands::get_socket_snapshot,
         ]);
 
     #[cfg(debug_assertions)]
