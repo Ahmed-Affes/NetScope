@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend:
+    name: Frontend Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: TypeScript Check
+        run: pnpm typecheck
+
+      - name: Run Vitest Tests
+        run: pnpm test
+
+      - name: Build Frontend Bundle
+        run: pnpm build
+
+  backend:
+    name: Rust Backend Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies for Tauri on Linux
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libpcap-dev
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Rustfmt Check
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+
+      - name: Cargo Check
+        run: cargo check --manifest-path src-tauri/Cargo.toml
+
+      - name: Cargo Test
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Cargo Clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
