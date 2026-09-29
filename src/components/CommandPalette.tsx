@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { Command } from "cmdk";
 import { useNetScopeStore } from "../store/useNetScopeStore";
 import { commands } from "../bindings";
@@ -13,32 +13,48 @@ import {
 } from "lucide-react";
 
 export const CommandPalette: React.FC = () => {
-  const [open, setOpen] = useState(false);
   const {
+    isCommandPaletteOpen,
+    openCommandPalette,
+    closeCommandPalette,
     setActiveFilter,
     setLayoutMode,
     toggleRecording,
     cleanSimulations,
   } = useNetScopeStore();
 
+  const setOpen = (val: boolean) => {
+    if (val) openCommandPalette();
+    else closeCommandPalette();
+  };
+
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || (e.key === "/" && !(e.target instanceof HTMLInputElement))) {
+      if (
+        (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) ||
+        (e.key === "/" && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement))
+      ) {
         e.preventDefault();
-        setOpen((o) => !o);
+        if (isCommandPaletteOpen) {
+          closeCommandPalette();
+        } else {
+          openCommandPalette();
+        }
+      } else if (e.key === "Escape" && isCommandPaletteOpen) {
+        closeCommandPalette();
       }
     };
 
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, []);
+    window.addEventListener("keydown", down);
+    return () => window.removeEventListener("keydown", down);
+  }, [isCommandPaletteOpen, openCommandPalette, closeCommandPalette]);
 
-  if (!open) return null;
+  if (!isCommandPaletteOpen) return null;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-black/60 backdrop-blur-sm"
-      onClick={() => setOpen(false)}
+      onClick={closeCommandPalette}
     >
       <div
         className="w-full max-w-lg overflow-hidden cyber-panel shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-cyan-500/30"

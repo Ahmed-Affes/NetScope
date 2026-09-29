@@ -1,12 +1,19 @@
 import { Alert, GraphLink, GraphNode } from "../types/graph";
-
 import { useNetScopeStore } from "../store/useNetScopeStore";
 
 export class ClientThreatEngine {
   private evaluatedAlerts: Set<string> = new Set();
+  private lastAlertTime = 0;
+
+  public clearAlerts() {
+    this.evaluatedAlerts.clear();
+  }
 
   public analyzeTopology(nodes: GraphNode[], links: GraphLink[]) {
     const now = Date.now();
+    // Enforce at least 1.5 seconds between new alert batches
+    if (now - this.lastAlertTime < 1500) return;
+
     const newAlerts: Alert[] = [];
 
     // Link analysis
@@ -47,8 +54,8 @@ export class ClientThreatEngine {
         }
       }
 
-      // 3. DNS Tunneling (Port 53 high throughput)
-      if (link.port === 53 && link.rate > 60_000) {
+      // 3. DNS Tunneling (Port 53 massive abnormal throughput > 500 KB/s)
+      if (link.port === 53 && link.rate > 500_000) {
         const alertId = `alert:dns-tunnel:${link.id}`;
         if (!this.evaluatedAlerts.has(alertId)) {
           this.evaluatedAlerts.add(alertId);
@@ -86,6 +93,7 @@ export class ClientThreatEngine {
     }
 
     if (newAlerts.length > 0) {
+      this.lastAlertTime = now;
       const currentStore = useNetScopeStore.getState();
       currentStore.applyDelta({
         t: now,
@@ -98,10 +106,6 @@ export class ClientThreatEngine {
         alerts: newAlerts,
       });
     }
-  }
-
-  public clear() {
-    this.evaluatedAlerts.clear();
   }
 }
 

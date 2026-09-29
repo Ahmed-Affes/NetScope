@@ -14,6 +14,7 @@ interface NetScopeState {
   isSimPanelOpen: boolean;
   isMetricsOpen: boolean;
   isLegendOpen: boolean;
+  isCommandPaletteOpen: boolean;
   searchQuery: string;
   activeFilter: string | null;
   layoutMode: "force" | "radial" | "geo" | "3d";
@@ -26,6 +27,8 @@ interface NetScopeState {
   toggleSimPanel: () => void;
   toggleMetrics: () => void;
   toggleLegend: () => void;
+  openCommandPalette: () => void;
+  closeCommandPalette: () => void;
   setTrafficMode: (mode: "simulator" | "live" | "replay") => void;
   toggleRecording: () => void;
   setRecording: (isRecording: boolean) => void;
@@ -61,6 +64,7 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
   isSimPanelOpen: true, // Visible by default as in user's target UI
   isMetricsOpen: true, // Visible by default
   isLegendOpen: true,  // Visible by default
+  isCommandPaletteOpen: false,
   searchQuery: "",
   activeFilter: null,
   layoutMode: "force",
@@ -139,6 +143,8 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
   toggleSimPanel: () => set((s) => ({ isSimPanelOpen: !s.isSimPanelOpen })),
   toggleMetrics: () => set((s) => ({ isMetricsOpen: !s.isMetricsOpen })),
   toggleLegend: () => set((s) => ({ isLegendOpen: !s.isLegendOpen })),
+  openCommandPalette: () => set({ isCommandPaletteOpen: true }),
+  closeCommandPalette: () => set({ isCommandPaletteOpen: false }),
 
   setTrafficMode: (mode) => set({ trafficMode: mode }),
 

@@ -21,6 +21,7 @@ interface RenderNode {
   container: Container;
   glowSprite: Sprite;
   coreGraphics: Graphics;
+  labelBg: Graphics;
   labelText: Text;
   x: number;
   y: number;
@@ -52,7 +53,7 @@ export class GraphEngine {
   private dragStartX = 0;
   private dragStartY = 0;
 
-  // Node interaction
+  // Interaction
   private hoveredNodeId: string | null = null;
   private draggedNodeId: string | null = null;
   private isDestroyed = false;
@@ -78,7 +79,7 @@ export class GraphEngine {
       height,
       backgroundColor: 0x07090d,
       antialias: true,
-      resolution: window.devicePixelRatio || 1,
+      resolution: Math.min(window.devicePixelRatio || 1, 2),
       autoDensity: true,
     });
 
@@ -91,6 +92,10 @@ export class GraphEngine {
     this.world.addChild(this.nodesContainer);
     this.world.addChild(this.labelsContainer);
 
+    // Enable stage events for camera panning
+    this.app.stage.eventMode = "static";
+    this.app.stage.hitArea = this.app.screen;
+
     // Setup Layout Web Worker
     this.initLayoutWorker(width, height);
 
@@ -102,10 +107,9 @@ export class GraphEngine {
   }
 
   private initLayoutWorker(width: number, height: number): void {
-    this.worker = new Worker(
-      new URL("./layout.worker.ts", import.meta.url),
-      { type: "module" }
-    );
+    this.worker = new Worker(new URL("./layout.worker.ts", import.meta.url), {
+      type: "module",
+    });
 
     this.worker.onmessage = (event: MessageEvent) => {
       if (this.isDestroyed) return;
@@ -126,8 +130,13 @@ export class GraphEngine {
             renderNode.y = y;
             renderNode.container.x = x;
             renderNode.container.y = y;
-            renderNode.labelText.x = x + renderNode.radius + 5;
-            renderNode.labelText.y = y - 6;
+
+            const lx = x + renderNode.radius + 6;
+            const ly = y - 7;
+            renderNode.labelText.x = lx;
+            renderNode.labelText.y = ly;
+            renderNode.labelBg.x = lx - 4;
+            renderNode.labelBg.y = ly - 2;
           }
         }
       }
@@ -165,6 +174,7 @@ export class GraphEngine {
       if (!incomingNodeIds.has(id)) {
         this.nodesContainer.removeChild(renderNode.container);
         this.labelsContainer.removeChild(renderNode.labelText);
+        this.labelsContainer.removeChild(renderNode.labelBg);
         this.nodesMap.delete(id);
         this.nodePositions.delete(id);
       }
@@ -175,9 +185,9 @@ export class GraphEngine {
         const renderNode = this.createNodeSprite(n);
         this.nodesMap.set(n.id, renderNode);
         this.nodesContainer.addChild(renderNode.container);
+        this.labelsContainer.addChild(renderNode.labelBg);
         this.labelsContainer.addChild(renderNode.labelText);
       } else {
-        // Update existing node data
         const rn = this.nodesMap.get(n.id)!;
         rn.data = n;
       }
@@ -187,14 +197,14 @@ export class GraphEngine {
     this.linksMap.clear();
     for (const l of links) {
       this.linksMap.set(l.id, l);
-      // Spawn flowing particles on active links
-      if (l.rate > 0 && Math.random() < 0.25) {
+      // Flow particles on active links
+      if (l.rate > 0 && Math.random() < 0.2) {
         const color = getLinkColor(l.port, l.proto);
         this.particles.spawn(l.source, l.target, color);
       }
     }
 
-    // Notify worker
+    // Post to worker
     if (this.worker) {
       const width = this.app.screen.width;
       const height = this.app.screen.height;
@@ -216,34 +226,50 @@ export class GraphEngine {
     const color = NODE_COLORS[node.kind] || 0x60a5fa;
     const radius = getNodeRadius(node.kind, node.bytesIn + node.bytesOut);
 
-    // Additive glow halo
-    const glowTex = createGlowTexture(color, radius * 3.5);
+    // Crisp neon halo (subtle, clean, not overblown)
+    const glowRadius = radius * 1.6;
+    const glowTex = createGlowTexture(color, glowRadius);
     const glowSprite = new Sprite(glowTex);
     glowSprite.anchor.set(0.5);
-    glowSprite.blendMode = "add";
-    glowSprite.alpha = node.kind === "host" ? 0.9 : 0.6;
+    glowSprite.alpha = node.kind === "host" ? 0.65 : node.kind === "threat" ? 0.6 : 0.35;
     container.addChild(glowSprite);
 
-    // Core circle
+    // Crisp core disc with border
     const coreGraphics = new Graphics();
     coreGraphics.circle(0, 0, radius);
     coreGraphics.fill({ color, alpha: 0.95 });
-    if (node.kind === "host") {
-      coreGraphics.stroke({ color: 0xffffff, width: 2, alpha: 0.9 });
-    }
+    coreGraphics.stroke({
+      color: node.kind === "threat" ? 0xff4d4d : 0xffffff,
+      width: node.kind === "host" ? 2 : 1,
+      alpha: 0.8,
+    });
     container.addChild(coreGraphics);
 
-    // Label Text
+    // Label Text with sleek dark backing pill
     const labelStyle = new TextStyle({
-      fontFamily: "'JetBrains Mono', monospace, Consolas",
+      fontFamily: "'JetBrains Mono', Consolas, monospace",
       fontSize: 10,
-      fill: "#94a3b8",
-      letterSpacing: 0.5,
+      fill: node.kind === "threat" ? "#fca5a5" : "#cbd5e1",
+      letterSpacing: 0.2,
+      fontWeight: node.kind === "host" || node.kind === "threat" ? "bold" : "normal",
     });
-    const labelText = new Text({ text: node.label, style: labelStyle });
-    labelText.alpha = 0.75;
 
-    // Node hit testing & drag
+    const labelText = new Text({ text: node.label, style: labelStyle });
+    labelText.alpha = 0.9;
+
+    // Dark pill background behind text for readability over links
+    const textWidth = Math.max(labelText.width + 8, 30);
+    const textHeight = 16;
+    const labelBg = new Graphics();
+    labelBg.roundRect(0, 0, textWidth, textHeight, 4);
+    labelBg.fill({ color: 0x07090d, alpha: 0.75 });
+    labelBg.stroke({
+      color: node.kind === "threat" ? 0xef4444 : 0x334155,
+      width: 1,
+      alpha: 0.4,
+    });
+
+    // Make node interactive
     container.eventMode = "static";
     container.cursor = "pointer";
     container.on("pointerover", () => this.setHoveredNode(node.id));
@@ -261,6 +287,7 @@ export class GraphEngine {
       container,
       glowSprite,
       coreGraphics,
+      labelBg,
       labelText,
       x: container.x,
       y: container.y,
@@ -301,7 +328,7 @@ export class GraphEngine {
         (link.source === this.hoveredNodeId || link.target === this.hoveredNodeId);
 
       const color = getLinkColor(link.port, link.proto);
-      const alpha = isConnected ? (link.rate > 0 ? 0.7 : 0.35) : 0.08;
+      const alpha = isConnected ? (link.rate > 0 ? 0.75 : 0.3) : 0.08;
 
       this.linksGraphics.moveTo(src.x, src.y);
       this.linksGraphics.lineTo(tgt.x, tgt.y);
@@ -316,34 +343,38 @@ export class GraphEngine {
     for (const [id, rn] of this.nodesMap.entries()) {
       const isConnected = !isHoverActive || connectedNodeIds.has(id);
       rn.container.alpha = isConnected ? 1.0 : 0.15;
-      rn.labelText.alpha = isConnected ? (isHoverActive ? 1.0 : 0.75) : 0.1;
+      rn.labelText.alpha = isConnected ? (isHoverActive ? 1.0 : 0.85) : 0.15;
+      rn.labelBg.alpha = isConnected ? (isHoverActive ? 0.9 : 0.7) : 0.1;
 
       // Pulse red threat nodes
       if (rn.data.kind === "threat") {
-        const pulse = 0.6 + Math.sin(Date.now() * 0.005) * 0.4;
+        const pulse = 0.5 + Math.sin(Date.now() * 0.006) * 0.3;
         rn.glowSprite.alpha = pulse;
       }
     }
 
-    // 3. Update Particles
+    // 3. Update flowing particles
     this.particles.update(this.nodePositions);
   }
 
   private setupInteractions(): void {
     const canvas = this.app.canvas as HTMLCanvasElement;
 
-    // Pan with mouse drag
-    canvas.addEventListener("mousedown", (e) => {
-      if (e.button === 0 && !this.draggedNodeId) {
+    // PixiJS stage background click for camera dragging
+    this.app.stage.on("pointerdown", (e) => {
+      // Only drag camera if user clicked the background, not a node
+      if (e.target === this.app.stage) {
         this.isDraggingCamera = true;
-        this.dragStartX = e.clientX - this.panX;
-        this.dragStartY = e.clientY - this.panY;
+        this.dragStartX = e.global.x - this.panX;
+        this.dragStartY = e.global.y - this.panY;
+        if (this.options.onSelectNode) {
+          this.options.onSelectNode(null);
+        }
       }
     });
 
-    window.addEventListener("mousemove", (e) => {
+    window.addEventListener("pointermove", (e) => {
       if (this.draggedNodeId && this.worker) {
-        // Convert screen coordinates to world coordinates
         const rect = canvas.getBoundingClientRect();
         const worldX = (e.clientX - rect.left - this.panX) / this.zoom;
         const worldY = (e.clientY - rect.top - this.panY) / this.zoom;
@@ -359,7 +390,7 @@ export class GraphEngine {
       }
     });
 
-    window.addEventListener("mouseup", () => {
+    window.addEventListener("pointerup", () => {
       if (this.draggedNodeId && this.worker) {
         this.worker.postMessage({
           type: "DRAG_NODE",
@@ -370,7 +401,7 @@ export class GraphEngine {
       this.isDraggingCamera = false;
     });
 
-    // Zoom to mouse cursor
+    // Zoom on wheel towards mouse point
     canvas.addEventListener("wheel", (e) => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
@@ -378,7 +409,7 @@ export class GraphEngine {
       const mouseY = e.clientY - rect.top;
 
       const factor = e.deltaY < 0 ? 1.12 : 0.89;
-      const newZoom = Math.min(Math.max(this.zoom * factor, 0.25), 3.5);
+      const newZoom = Math.min(Math.max(this.zoom * factor, 0.25), 3.0);
 
       this.panX = mouseX - (mouseX - this.panX) * (newZoom / this.zoom);
       this.panY = mouseY - (mouseY - this.panY) * (newZoom / this.zoom);
@@ -387,7 +418,6 @@ export class GraphEngine {
       this.applyTransform();
     });
 
-    // Resize handler
     window.addEventListener("resize", this.onResize);
   }
 

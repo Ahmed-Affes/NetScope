@@ -8,7 +8,6 @@ import { useNetScopeStore } from "../store/useNetScopeStore";
 import { recorder } from "../services/recorder";
 import { threatEngine } from "../services/threatEngine";
 
-
 export const GraphCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<GraphEngine | null>(null);
@@ -16,6 +15,7 @@ export const GraphCanvas: React.FC = () => {
 
   const { selectNode, selectLink, applyDelta, layoutMode, trafficMode } = useNetScopeStore();
 
+  // Initialize Engine & Source once or when trafficMode changes
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -36,6 +36,8 @@ export const GraphCanvas: React.FC = () => {
     }
     sourceRef.current = source;
 
+    let lastThreatAnalysis = 0;
+
     engine.init().then(async () => {
       if (!mounted) return;
 
@@ -51,7 +53,8 @@ export const GraphCanvas: React.FC = () => {
         removeLinkIds: [],
       });
 
-      engine.updateGraph(snapshot.nodes, snapshot.links, layoutMode);
+      const currentMode = useNetScopeStore.getState().layoutMode;
+      engine.updateGraph(snapshot.nodes, snapshot.links, currentMode);
 
       // Subscribe to deltas
       source.onDelta((delta) => {
@@ -74,10 +77,14 @@ export const GraphCanvas: React.FC = () => {
         }
 
         engine.updateGraph(filteredNodes, linksList, currentStore.layoutMode);
-        threatEngine.analyzeTopology(nodesList, linksList);
+
+        // Run threat engine once per 2 seconds to avoid UI alert flooding
+        const now = Date.now();
+        if (now - lastThreatAnalysis > 2000) {
+          lastThreatAnalysis = now;
+          threatEngine.analyzeTopology(nodesList, linksList);
+        }
       });
-
-
 
       source.start();
     });
@@ -87,7 +94,17 @@ export const GraphCanvas: React.FC = () => {
       source.stop();
       engine.destroy();
     };
-  }, [applyDelta, selectNode, selectLink, layoutMode, trafficMode]);
+  }, [applyDelta, selectNode, selectLink, trafficMode]);
+
+  // Handle smooth layout mode transition without destroying the engine
+  useEffect(() => {
+    if (engineRef.current) {
+      const currentStore = useNetScopeStore.getState();
+      const nodesList = Object.values(currentStore.nodes);
+      const linksList = Object.values(currentStore.links);
+      engineRef.current.updateGraph(nodesList, linksList, layoutMode);
+    }
+  }, [layoutMode]);
 
   return (
     <div

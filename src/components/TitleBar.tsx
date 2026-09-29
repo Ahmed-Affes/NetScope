@@ -23,6 +23,7 @@ export const TitleBar: React.FC = () => {
     toggleSimPanel,
     layoutMode,
     setLayoutMode,
+    openCommandPalette,
   } = useNetScopeStore();
 
   const handleToggleRecord = async () => {
@@ -150,10 +151,7 @@ export const TitleBar: React.FC = () => {
       {/* Center: Search & Layout Switcher */}
       <div className="flex items-center gap-2" data-tauri-drag-region>
         <button
-          onClick={() => {
-            // Trigger command palette / search
-            window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
-          }}
+          onClick={openCommandPalette}
           className="flex items-center gap-2 px-2.5 py-1 rounded bg-[#0e121a]/80 border border-white/[0.06] text-slate-400 hover:text-slate-200 text-[11px] transition-colors"
         >
           <Search className="w-3 h-3 text-cyan-400/80" />
