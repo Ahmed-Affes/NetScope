@@ -65,11 +65,18 @@ impl FlowAggregator {
             CaptureStatus {
                 is_available: has_pcap,
                 is_active: false,
-                driver_name: if has_pcap { "Npcap (WinPcap-compatible)".into() } else { "None detected".into() },
+                driver_name: if has_pcap {
+                    "Npcap (WinPcap-compatible)".into()
+                } else {
+                    "None detected".into()
+                },
                 error: if has_pcap {
                     None
                 } else {
-                    Some("Npcap driver not detected in System32. Running in socket table poller mode.".into())
+                    Some(
+                        "Npcap driver not detected in System32. Running in socket table poller mode."
+                            .into(),
+                    )
                 },
                 interfaces: vec![
                     "Ethernet (Realtek PCIe GbE)".into(),

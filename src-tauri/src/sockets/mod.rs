@@ -285,8 +285,13 @@ impl SocketPoller {
                 });
 
                 // Link proc -> remote endpoint
-                let proc_remote_link_id = format!("link:{}->{}:{}", proc_id, entry.remote_ip, entry.remote_port);
-                current_links.entry(proc_remote_link_id.clone()).or_insert_with(|| GraphLink {
+                let proc_remote_link_id = format!(
+                    "link:{}->{}:{}",
+                    proc_id, entry.remote_ip, entry.remote_port
+                );
+                current_links
+                    .entry(proc_remote_link_id.clone())
+                    .or_insert_with(|| GraphLink {
                     id: proc_remote_link_id,
                     source: proc_id.clone(),
                     target: remote_id.clone(),

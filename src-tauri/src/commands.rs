@@ -145,8 +145,13 @@ pub fn block_remote_ip(ip: String) -> Result<String, String> {
             .status();
 
         match status {
-            Ok(s) if s.success() => Ok(format!("Firewall rule '{}' added successfully", rule_name)),
-            Ok(_) => Err("Firewall elevation required. Please run NetScope as Administrator to modify Windows Firewall.".into()),
+            Ok(s) if s.success() => {
+                Ok(format!("Firewall rule '{}' added successfully", rule_name))
+            }
+            Ok(_) => Err(
+                "Firewall elevation required. Please run NetScope as Administrator to modify Windows Firewall."
+                    .into(),
+            ),
             Err(e) => Err(format!("Failed to execute netsh: {}", e)),
         }
     }
