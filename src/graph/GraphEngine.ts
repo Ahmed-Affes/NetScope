@@ -131,8 +131,27 @@ export class GraphEngine {
             renderNode.container.x = x;
             renderNode.container.y = y;
 
-            const lx = x + renderNode.radius + 6;
-            const ly = y - 7;
+            const cx = this.app.screen.width / 2;
+            const cy = this.app.screen.height / 2;
+            const isCenter = Math.abs(x - cx) < 32 && Math.abs(y - cy) < 32;
+            const isLeft = x < cx - 15;
+
+            let lx: number;
+            let ly: number;
+
+            if (isCenter) {
+              lx = x - renderNode.labelText.width / 2;
+              ly = y + renderNode.radius + 6;
+            } else if (isLeft) {
+              // Node is on left side -> flip label to the left so it points outwards
+              lx = x - renderNode.radius - 8 - renderNode.labelText.width;
+              ly = y - 7;
+            } else {
+              // Node is on right side -> label to the right
+              lx = x + renderNode.radius + 8;
+              ly = y - 7;
+            }
+
             renderNode.labelText.x = lx;
             renderNode.labelText.y = ly;
             renderNode.labelBg.x = lx - 4;
