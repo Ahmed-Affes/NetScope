@@ -1,5 +1,5 @@
 use crate::model::{GraphDelta, GraphLink, GraphNode, LinkUpdate, NodeKind, NodeUpdate};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::net::IpAddr;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};

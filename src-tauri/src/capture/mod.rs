@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::sockets::now_ms;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
