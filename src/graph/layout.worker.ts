@@ -36,6 +36,7 @@ let currentHeight = 800;
 function computeLayoutTargets(mode: string, width: number, height: number) {
   const cx = width / 2;
   const cy = height / 2;
+  const minDim = Math.min(width, height);
 
   if (mode === "radial") {
     // 1. Group nodes into hierarchy rings
@@ -64,8 +65,11 @@ function computeLayoutTargets(mode: string, width: number, height: number) {
       n.fy = cy;
     });
 
-    // Assign Ring 1 (r = 170)
-    const r1 = 170;
+    const maxR = minDim * 0.44;
+    const r1 = maxR * 0.38;
+    const r2 = maxR * 0.68;
+    const r3 = maxR * 0.98;
+
     ring1.forEach((n, i) => {
       const angle = (i / Math.max(ring1.length, 1)) * 2 * Math.PI - Math.PI / 2;
       n.targetX = cx + Math.cos(angle) * r1;
@@ -74,8 +78,6 @@ function computeLayoutTargets(mode: string, width: number, height: number) {
       n.fy = undefined;
     });
 
-    // Assign Ring 2 (r = 300)
-    const r2 = 300;
     ring2.forEach((n, i) => {
       const angle = (i / Math.max(ring2.length, 1)) * 2 * Math.PI - Math.PI / 3;
       n.targetX = cx + Math.cos(angle) * r2;
@@ -84,8 +86,6 @@ function computeLayoutTargets(mode: string, width: number, height: number) {
       n.fy = undefined;
     });
 
-    // Assign Ring 3 (r = 440)
-    const r3 = 440;
     ring3.forEach((n, i) => {
       const angle = (i / Math.max(ring3.length, 1)) * 2 * Math.PI;
       n.targetX = cx + Math.cos(angle) * r3;
@@ -94,7 +94,7 @@ function computeLayoutTargets(mode: string, width: number, height: number) {
       n.fy = undefined;
     });
   } else if (mode === "geo") {
-    // 4 distinct geographic regional quadrants
+    // 4 distinct geographic regional quadrants scaled to viewport
     const lanNodes: WorkerNode[] = [];
     const cloudNodes: WorkerNode[] = [];
     const internetNodes: WorkerNode[] = [];
@@ -117,12 +117,15 @@ function computeLayoutTargets(mode: string, width: number, height: number) {
       }
     }
 
+    const spanX = Math.min(width * 0.28, 300);
+    const spanY = Math.min(height * 0.25, 180);
+
     // Top-Left: Cloud / Local Services
-    const q1X = cx - 340;
-    const q1Y = cy - 200;
+    const q1X = cx - spanX;
+    const q1Y = cy - spanY;
     cloudNodes.forEach((n, i) => {
       const angle = (i / Math.max(cloudNodes.length, 1)) * 2 * Math.PI;
-      const r = 50 + (i % 3) * 35;
+      const r = 40 + (i % 3) * 28;
       n.targetX = q1X + Math.cos(angle) * r;
       n.targetY = q1Y + Math.sin(angle) * r;
       n.fx = undefined;
@@ -130,11 +133,11 @@ function computeLayoutTargets(mode: string, width: number, height: number) {
     });
 
     // Top-Right: Internet & CDNs
-    const q2X = cx + 340;
-    const q2Y = cy - 200;
+    const q2X = cx + spanX;
+    const q2Y = cy - spanY;
     internetNodes.forEach((n, i) => {
       const angle = (i / Math.max(internetNodes.length, 1)) * 2 * Math.PI;
-      const r = 55 + (i % 3) * 35;
+      const r = 45 + (i % 3) * 28;
       n.targetX = q2X + Math.cos(angle) * r;
       n.targetY = q2Y + Math.sin(angle) * r;
       n.fx = undefined;
@@ -142,11 +145,11 @@ function computeLayoutTargets(mode: string, width: number, height: number) {
     });
 
     // Bottom-Left: LAN & Gateway Devices
-    const q3X = cx - 340;
-    const q3Y = cy + 200;
+    const q3X = cx - spanX;
+    const q3Y = cy + spanY;
     lanNodes.forEach((n, i) => {
       const angle = (i / Math.max(lanNodes.length, 1)) * 2 * Math.PI;
-      const r = 50 + (i % 3) * 35;
+      const r = 40 + (i % 3) * 28;
       n.targetX = q3X + Math.cos(angle) * r;
       n.targetY = q3Y + Math.sin(angle) * r;
       n.fx = undefined;
@@ -154,11 +157,11 @@ function computeLayoutTargets(mode: string, width: number, height: number) {
     });
 
     // Bottom-Right: Threat Quarantine Sector
-    const q4X = cx + 340;
-    const q4Y = cy + 200;
+    const q4X = cx + spanX;
+    const q4Y = cy + spanY;
     threatNodes.forEach((n, i) => {
       const angle = (i / Math.max(threatNodes.length, 1)) * 2 * Math.PI;
-      const r = 45 + (i % 3) * 35;
+      const r = 35 + (i % 3) * 28;
       n.targetX = q4X + Math.cos(angle) * r;
       n.targetY = q4Y + Math.sin(angle) * r;
       n.fx = undefined;
@@ -177,12 +180,12 @@ function computeLayoutTargets(mode: string, width: number, height: number) {
 
       // Elevation tiers: Threats = top (+1), Host/Proc = middle (0), LAN = bottom (-1)
       const tier = node.kind === "threat" ? 1 : node.kind === "lan" || node.kind === "gateway" ? -1 : 0;
-      const spreadX = ((i % 7) - 3) * 75;
-      const spreadY = (Math.floor(i / 7) - 1) * 55;
+      const spreadX = ((i % 7) - 3) * 65;
+      const spreadY = (Math.floor(i / 7) - 1) * 45;
 
       // Isometric projection
-      node.targetX = cx + spreadX * 0.866 + tier * 70;
-      node.targetY = cy + spreadY * 0.5 - tier * 180;
+      node.targetX = cx + spreadX * 0.866 + tier * 50;
+      node.targetY = cy + spreadY * 0.5 - tier * 140;
       node.fx = undefined;
       node.fy = undefined;
     });
@@ -217,6 +220,7 @@ function configureSimulationForces(mode: string, width: number, height: number) 
   computeLayoutTargets(mode, width, height);
 
   if (mode === "radial" || mode === "geo" || mode === "3d") {
+    simulation.velocityDecay(0.65);
     // Coordinate-directed target positioning
     simulation
       .force(
@@ -235,6 +239,7 @@ function configureSimulationForces(mode: string, width: number, height: number) 
       )
       .force("collide", forceCollide<WorkerNode>().radius((d) => d.radius + 16).strength(0.8));
   } else {
+    simulation.velocityDecay(0.4);
     // Pure organic force-directed physics
     simulation
       .force(

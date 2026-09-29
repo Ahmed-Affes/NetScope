@@ -45,3 +45,11 @@ This document records architectural decisions, conventions, tradeoffs, and clari
 - **Decision:** Configured `vercel.json` with `app` (Vite) as the primary public web service mapped to `/(.*)`. Excluded `src-tauri` from Vercel services.
 - **Rationale:** `src-tauri` is a desktop application shell requiring native OS desktop GUI windowing (WebKitGTK/Cocoa/WebView2) and socket capture libraries (`pcap`/`netstat2`), which are not supported or suitable for serverless web deployment. The web dashboard runs seamlessly in web simulation mode on Vercel without requiring native OS bindings.
 
+## 11. Viewport-Responsive Geometric Layouts with Damped Physics
+- **Decision:** Dynamic viewport-proportional radii (`minDim * 0.44`) and velocity decay (`0.65`) for `radial`, `geo`, and `3d` modes.
+- **Rationale:** Prevents nodes from oscillating or drifting outside laptop screen viewports, ensuring buttery-smooth transitions and clear concentric hierarchy rings.
+
+## 12. Strict Link-Node Referential Integrity
+- **Decision:** Filter links whenever node filtering occurs (`visibleNodeIds.has(l.source) && visibleNodeIds.has(l.target)`) before dispatching to D3 layout worker.
+- **Rationale:** Prevents silent D3 web worker crashes when rendering filtered subgraphs (e.g. Threat-only views).
+

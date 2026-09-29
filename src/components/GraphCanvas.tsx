@@ -76,7 +76,22 @@ export const GraphCanvas: React.FC = () => {
           });
         }
 
-        engine.updateGraph(filteredNodes, linksList, currentStore.layoutMode);
+        if (currentStore.searchQuery && currentStore.searchQuery.trim()) {
+          const q = currentStore.searchQuery.toLowerCase().trim();
+          filteredNodes = filteredNodes.filter(
+            (n) =>
+              n.label.toLowerCase().includes(q) ||
+              (n.ip && n.ip.toLowerCase().includes(q)) ||
+              n.kind.toLowerCase().includes(q)
+          );
+        }
+
+        const visibleNodeIds = new Set(filteredNodes.map((n) => n.id));
+        const filteredLinks = linksList.filter(
+          (l) => visibleNodeIds.has(l.source) && visibleNodeIds.has(l.target)
+        );
+
+        engine.updateGraph(filteredNodes, filteredLinks, currentStore.layoutMode);
 
         // Run threat engine once per 2 seconds to avoid UI alert flooding
         const now = Date.now();
@@ -96,15 +111,41 @@ export const GraphCanvas: React.FC = () => {
     };
   }, [applyDelta, selectNode, selectLink, trafficMode]);
 
-  // Handle smooth layout mode transition without destroying the engine
+  const { activeFilter, searchQuery, graphVersion } = useNetScopeStore();
+
+  // Handle smooth layout mode and filter transitions reactively
   useEffect(() => {
     if (engineRef.current) {
       const currentStore = useNetScopeStore.getState();
       const nodesList = Object.values(currentStore.nodes);
       const linksList = Object.values(currentStore.links);
-      engineRef.current.updateGraph(nodesList, linksList, layoutMode);
+
+      let filteredNodes = nodesList;
+      if (activeFilter) {
+        filteredNodes = nodesList.filter((n) => {
+          if (activeFilter === "threat") return n.kind === "threat";
+          return n.kind === activeFilter;
+        });
+      }
+
+      if (searchQuery && searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        filteredNodes = filteredNodes.filter(
+          (n) =>
+            n.label.toLowerCase().includes(q) ||
+            (n.ip && n.ip.toLowerCase().includes(q)) ||
+            n.kind.toLowerCase().includes(q)
+        );
+      }
+
+      const visibleNodeIds = new Set(filteredNodes.map((n) => n.id));
+      const filteredLinks = linksList.filter(
+        (l) => visibleNodeIds.has(l.source) && visibleNodeIds.has(l.target)
+      );
+
+      engineRef.current.updateGraph(filteredNodes, filteredLinks, layoutMode);
     }
-  }, [layoutMode]);
+  }, [layoutMode, activeFilter, searchQuery, graphVersion]);
 
   return (
     <div

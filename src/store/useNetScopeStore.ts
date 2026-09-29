@@ -18,6 +18,7 @@ interface NetScopeState {
   searchQuery: string;
   activeFilter: string | null;
   layoutMode: "force" | "radial" | "geo" | "3d";
+  graphVersion: number;
 
   // Actions
   applyDelta: (delta: GraphDelta) => void;
@@ -68,6 +69,7 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
   searchQuery: "",
   activeFilter: null,
   layoutMode: "force",
+  graphVersion: 0,
 
   applyDelta: (delta) =>
     set((state) => {
@@ -119,10 +121,17 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
         ? [...delta.alerts, ...state.alerts].slice(0, 100)
         : state.alerts;
 
+      const hasStructureChange =
+        delta.addNodes.length > 0 ||
+        delta.removeNodeIds.length > 0 ||
+        delta.addLinks.length > 0 ||
+        delta.removeLinkIds.length > 0;
+
       return {
         nodes: nextNodes,
         links: nextLinks,
         alerts: nextAlerts,
+        graphVersion: hasStructureChange ? state.graphVersion + 1 : state.graphVersion,
       };
     }),
 
@@ -187,7 +196,8 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
       return {
         nodes: nextNodes,
         links: nextLinks,
-        alerts: state.alerts.filter((a) => !a.rule.toLowerCase().includes("simulated")),
+        alerts: [], // Clean all alerts when purging simulations
+        graphVersion: state.graphVersion + 1,
       };
     }),
 }));

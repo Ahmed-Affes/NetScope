@@ -4,6 +4,7 @@ import { useNetScopeStore } from "../store/useNetScopeStore";
 import { recorder } from "../services/recorder";
 import {
   Activity,
+  Download,
   Maximize2,
   Minus,
   Search,
@@ -146,6 +147,18 @@ export const TitleBar: React.FC = () => {
           <Smartphone className="w-3 h-3 text-cyan-400" />
           <span>REMOTE</span>
         </button>
+
+        {/* Desktop App Download Button */}
+        <a
+          href="https://github.com/Ahmed-Affes/NetScope/releases"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-900/40 hover:border-cyan-400 transition-all shadow-[0_0_8px_rgba(34,211,238,0.2)]"
+          title="Download Windows Desktop App (.exe / .msi installer)"
+        >
+          <Download className="w-3 h-3 text-cyan-400" />
+          <span className="font-semibold">DESKTOP APP</span>
+        </a>
       </div>
 
       {/* Center: Search & Layout Switcher */}
