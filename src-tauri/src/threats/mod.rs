@@ -18,11 +18,17 @@ pub struct ThreatEngine {
     connection_intervals: std::collections::HashMap<String, Vec<u64>>,
 }
 
-impl ThreatEngine {
-    pub fn new() -> Self {
+impl Default for ThreatEngine {
+    fn default() -> Self {
         Self {
             connection_intervals: std::collections::HashMap::new(),
         }
+    }
+}
+
+impl ThreatEngine {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Evaluates Shannon entropy of domain names to detect DGAs (Domain Generation Algorithms)

@@ -24,8 +24,8 @@ pub struct SocketPoller {
     previous_links: HashMap<String, GraphLink>,
 }
 
-impl SocketPoller {
-    pub fn new() -> Self {
+impl Default for SocketPoller {
+    fn default() -> Self {
         let mut system = System::new_all();
         system.refresh_all();
         Self {
@@ -33,6 +33,12 @@ impl SocketPoller {
             previous_nodes: HashMap::new(),
             previous_links: HashMap::new(),
         }
+    }
+}
+
+impl SocketPoller {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn refresh_processes(&mut self) {

@@ -180,6 +180,3 @@ pub fn unblock_remote_ip(ip: String) -> Result<String, String> {
         Ok(format!("Firewall drop rule for {} removed", ip))
     }
 }
-
-
-

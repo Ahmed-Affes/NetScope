@@ -39,12 +39,18 @@ pub struct FlowAggregator {
     is_active: bool,
 }
 
-impl FlowAggregator {
-    pub fn new() -> Self {
+impl Default for FlowAggregator {
+    fn default() -> Self {
         Self {
             flows: HashMap::new(),
             is_active: false,
         }
+    }
+}
+
+impl FlowAggregator {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn check_status() -> CaptureStatus {
