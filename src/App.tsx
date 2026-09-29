@@ -5,6 +5,7 @@ import { AtkSimPanel } from "./components/AtkSimPanel";
 import { StatsPill } from "./components/StatsPill";
 import { LegendPanel } from "./components/LegendPanel";
 import { InspectorPanel } from "./components/InspectorPanel";
+import { GraphCanvas } from "./components/GraphCanvas";
 import { useNetScopeStore } from "./store/useNetScopeStore";
 import { commands } from "./bindings";
 
@@ -42,7 +43,6 @@ export const App: React.FC = () => {
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        // Toggle command palette or focus search
       } else if (e.key === "Escape") {
         useNetScopeStore.getState().selectNode(null);
         useNetScopeStore.getState().selectLink(null);
@@ -68,18 +68,15 @@ export const App: React.FC = () => {
 
       {/* Main Workspace Area */}
       <div className="relative flex-1 w-full h-[calc(100vh-40px)] overflow-hidden">
-        {/* Background Visual Effects: Subtle Starfield, Scanlines & Vignette */}
+        {/* Background Visual Effects: Subtle Scanlines & Vignette */}
         <div className="absolute inset-0 cyber-scanlines z-10 pointer-events-none" />
         <div className="absolute inset-0 cyber-vignette z-10 pointer-events-none" />
 
         {/* Ambient Radial Cyber Glow in Center */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-cyan-950/15 rounded-full blur-[140px] pointer-events-none z-0" />
 
-        {/* WebGL Canvas Graph Mount Placeholder for Phase 0/1 */}
-        <div id="netscope-canvas-container" className="absolute inset-0 z-0 flex items-center justify-center">
-          {/* Subtle Cyber Grid Guide for Phase 0 */}
-          <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:32px_32px] opacity-25" />
-        </div>
+        {/* WebGL Canvas Graph Engine (PixiJS v8) */}
+        <GraphCanvas />
 
         {/* Floating Cyber Panels matching user screenshot */}
         <MetricsPanel />
