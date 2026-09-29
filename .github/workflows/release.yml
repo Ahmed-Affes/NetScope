@@ -43,19 +43,19 @@ jobs:
         run: pnpm build
 
       - name: Build Tauri Desktop Bundle
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "NetScope Desktop ${{ github.ref_name }}"
+          tagName: v__VERSION__
+          releaseName: "NetScope Desktop v__VERSION__"
           releaseBody: |
             ### NetScope Desktop Release 🛰️
             
             Autonomous Network Intelligence & Cyber Threat Visualizer.
             
             #### 📦 Download & Install:
-            - Download the Windows installer (`.exe` or `.msi`) below.
+            - Download the Windows installer (`.exe`) below.
             - Run the setup file to install NetScope on your PC.
             
             #### ✨ Key Features:
@@ -73,7 +73,6 @@ jobs:
         with:
           name: NetScope-Windows-Setup
           path: |
-            src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/*.exe
           if-no-files-found: warn
