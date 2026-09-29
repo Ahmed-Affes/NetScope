@@ -1,6 +1,7 @@
 import React from "react";
 import { useNetScopeStore } from "../store/useNetScopeStore";
 import { Activity, Ban, Shield, X } from "lucide-react";
+import { Sparkline } from "./Sparkline";
 
 export const InspectorPanel: React.FC = () => {
   const {
@@ -111,8 +112,8 @@ export const InspectorPanel: React.FC = () => {
             </div>
           )}
 
-          {/* Traffic stats */}
-          <div className="p-2 rounded bg-white/[0.02] border border-white/[0.04] space-y-1">
+          {/* Traffic stats with Sparkline */}
+          <div className="p-2 rounded bg-white/[0.02] border border-white/[0.04] space-y-1.5">
             <div className="flex justify-between items-center text-[11px]">
               <span className="text-slate-400">Total In / Out:</span>
               <span className="font-mono text-slate-200">
@@ -124,6 +125,18 @@ export const InspectorPanel: React.FC = () => {
               <span className="font-mono text-cyan-400">
                 {formatBytes(selectedNode.rateIn + selectedNode.rateOut)}/s
               </span>
+            </div>
+            <div className="pt-1">
+              <span className="text-[9px] text-slate-400 uppercase tracking-wider block mb-1">
+                Throughput Activity (Last 60s)
+              </span>
+              <Sparkline
+                data={[12, 18, 14, 25, 30, 48, 42, 60, 55, 75, 68, 92, selectedNode.rateIn + selectedNode.rateOut]}
+                width={272}
+                height={38}
+                color="#22d3ee"
+                fillColor="rgba(34, 211, 238, 0.15)"
+              />
             </div>
           </div>
 

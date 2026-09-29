@@ -5,6 +5,8 @@ import { AtkSimPanel } from "./components/AtkSimPanel";
 import { StatsPill } from "./components/StatsPill";
 import { LegendPanel } from "./components/LegendPanel";
 import { InspectorPanel } from "./components/InspectorPanel";
+import { FilterBar } from "./components/FilterBar";
+import { CommandPalette } from "./components/CommandPalette";
 import { GraphCanvas } from "./components/GraphCanvas";
 import { useNetScopeStore } from "./store/useNetScopeStore";
 import { commands } from "./bindings";
@@ -79,11 +81,13 @@ export const App: React.FC = () => {
         <GraphCanvas />
 
         {/* Floating Cyber Panels matching user screenshot */}
+        <FilterBar />
         <MetricsPanel />
         <AtkSimPanel />
         <StatsPill />
         <LegendPanel />
         <InspectorPanel />
+        <CommandPalette />
       </div>
     </div>
   );
