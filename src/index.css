@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #07090d;
+    --foreground: #e6edf3;
+  }
+
+  * {
+    border-color: rgba(255, 255, 255, 0.06);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  body {
+    background-color: #07090d;
+    color: #e6edf3;
+    font-family: 'JetBrains Mono', monospace, Consolas, sans-serif;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* Sci-Fi Scanlines & Vignette */
+.cyber-scanlines {
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%,
+    rgba(0, 0, 0, 0.25) 50%
+  ),
+  linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.01),
+    rgba(0, 255, 0, 0.005),
+    rgba(0, 0, 255, 0.01)
+  );
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+.cyber-vignette {
+  background: radial-gradient(
+    circle at center,
+    transparent 50%,
+    rgba(4, 6, 9, 0.8) 100%
+  );
+  pointer-events: none;
+}
+
+/* Glassmorphism Cyber-Ops Panel */
+.cyber-panel {
+  background-color: rgba(14, 18, 26, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+}
+
+.cyber-panel-subtle {
+  background-color: rgba(14, 18, 26, 0.60);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(7, 9, 13, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.4);
+}
+
+/* Glow Badges & Keyframes */
+@keyframes cyber-pulse-red {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(239, 68, 68, 0.8);
+  }
+}
+
+.pulse-threat {
+  animation: cyber-pulse-red 2s infinite;
+}
+
+@keyframes dot-blink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(0.85); }
+}
+
+.animate-rec-dot {
+  animation: dot-blink 1.2s infinite;
+}

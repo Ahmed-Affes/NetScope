@@ -1,0 +1,202 @@
+import React from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useNetScopeStore } from "../store/useNetScopeStore";
+import {
+  Activity,
+  Maximize2,
+  Minus,
+  Search,
+  ShieldAlert,
+  X,
+} from "lucide-react";
+
+export const TitleBar: React.FC = () => {
+  const {
+    trafficMode,
+    setTrafficMode,
+    isRecording,
+    toggleRecording,
+    recordingSeconds,
+    isSimPanelOpen,
+    toggleSimPanel,
+    layoutMode,
+    setLayoutMode,
+  } = useNetScopeStore();
+
+  const handleMinimize = async () => {
+    try {
+      await getCurrentWindow().minimize();
+    } catch {
+      // Browser fallback
+    }
+  };
+
+  const handleMaximize = async () => {
+    try {
+      await getCurrentWindow().toggleMaximize();
+    } catch {
+      // Browser fallback
+    }
+  };
+
+  const handleClose = async () => {
+    try {
+      await getCurrentWindow().close();
+    } catch {
+      // Browser fallback
+    }
+  };
+
+  const formatTime = (secs: number) => {
+    const mins = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${mins.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <div
+      data-tauri-drag-region
+      className="h-10 w-full bg-[#0a0e17]/90 border-b border-white/[0.06] flex items-center justify-between px-3 select-none z-50 backdrop-blur-md relative"
+    >
+      {/* Left: Branding & Mode */}
+      <div className="flex items-center gap-3" data-tauri-drag-region>
+        <div className="flex items-center gap-2" data-tauri-drag-region>
+          <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-cyan-500 to-fuchsia-500 flex items-center justify-center p-[1px] shadow-[0_0_10px_rgba(34,211,238,0.4)]">
+            <div className="w-full h-full bg-[#07090d] rounded-[5px] flex items-center justify-center">
+              <Activity className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+            </div>
+          </div>
+          <span className="text-xs font-bold tracking-wider text-slate-200">
+            NET<span className="text-cyan-400">SCOPE</span>
+          </span>
+        </div>
+
+        {/* Mode Selector Badges */}
+        <div className="flex items-center bg-[#0e121a] rounded-md p-0.5 border border-white/[0.07] text-[10px]">
+          <button
+            onClick={() => setTrafficMode("simulator")}
+            className={`px-2 py-0.5 rounded transition-colors ${
+              trafficMode === "simulator"
+                ? "bg-cyan-500/20 text-cyan-400 font-semibold shadow-[0_0_8px_rgba(34,211,238,0.3)]"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            SIM
+          </button>
+          <button
+            onClick={() => setTrafficMode("live")}
+            className={`px-2 py-0.5 rounded transition-colors ${
+              trafficMode === "live"
+                ? "bg-emerald-500/20 text-emerald-400 font-semibold shadow-[0_0_8px_rgba(52,211,153,0.3)]"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            LIVE
+          </button>
+          <button
+            onClick={() => setTrafficMode("replay")}
+            className={`px-2 py-0.5 rounded transition-colors ${
+              trafficMode === "replay"
+                ? "bg-purple-500/20 text-purple-400 font-semibold shadow-[0_0_8px_rgba(168,85,247,0.3)]"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            REPLAY
+          </button>
+        </div>
+
+        {/* Recording Toggle */}
+        <button
+          onClick={toggleRecording}
+          className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] border transition-all ${
+            isRecording
+              ? "bg-red-500/20 border-red-500/40 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)]"
+              : "bg-white/[0.03] border-white/[0.06] text-slate-400 hover:text-slate-200"
+          }`}
+          title={isRecording ? "Stop Recording (Supabase)" : "Start Recording"}
+        >
+          <span
+            className={`w-2 h-2 rounded-full ${
+              isRecording ? "bg-red-500 animate-rec-dot" : "bg-slate-500"
+            }`}
+          />
+          <span>{isRecording ? `REC ${formatTime(recordingSeconds)}` : "REC"}</span>
+        </button>
+      </div>
+
+      {/* Center: Search & Layout Switcher */}
+      <div className="flex items-center gap-2" data-tauri-drag-region>
+        <button
+          onClick={() => {
+            // Trigger command palette / search
+            window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
+          }}
+          className="flex items-center gap-2 px-2.5 py-1 rounded bg-[#0e121a]/80 border border-white/[0.06] text-slate-400 hover:text-slate-200 text-[11px] transition-colors"
+        >
+          <Search className="w-3 h-3 text-cyan-400/80" />
+          <span>Search endpoints, processes...</span>
+          <kbd className="px-1 py-0.2 bg-white/[0.06] text-[9px] rounded text-slate-400">
+            Ctrl+K
+          </kbd>
+        </button>
+
+        {/* Layout Modes */}
+        <div className="flex items-center bg-[#0e121a] rounded p-0.5 border border-white/[0.06] text-[10px]">
+          {(["force", "radial", "geo", "3d"] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setLayoutMode(mode)}
+              className={`px-2 py-0.5 rounded uppercase tracking-wider transition-colors ${
+                layoutMode === mode
+                  ? "bg-cyan-500/20 text-cyan-400 font-semibold"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Right: ATK-SIM & Window Controls */}
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={toggleSimPanel}
+          className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs border transition-colors ${
+            isSimPanelOpen
+              ? "bg-red-500/20 border-red-500/40 text-red-300 shadow-[0_0_8px_rgba(239,68,68,0.3)]"
+              : "bg-[#0e121a] border-white/[0.08] text-slate-300 hover:text-white"
+          }`}
+        >
+          <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+          <span className="font-semibold text-[11px]">ATK-SIM</span>
+        </button>
+
+        {/* Window controls */}
+        <div className="flex items-center ml-2 border-l border-white/[0.08] pl-2">
+          <button
+            onClick={handleMinimize}
+            className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/[0.08] text-slate-400 hover:text-white transition-colors"
+            title="Minimize"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={handleMaximize}
+            className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/[0.08] text-slate-400 hover:text-white transition-colors"
+            title="Maximize"
+          >
+            <Maximize2 className="w-3 h-3" />
+          </button>
+          <button
+            onClick={handleClose}
+            className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/30 text-slate-400 hover:text-red-400 transition-colors"
+            title="Close"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
