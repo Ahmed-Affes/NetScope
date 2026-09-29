@@ -2,8 +2,10 @@ import React, { useEffect, useRef } from "react";
 import { GraphEngine } from "../graph/GraphEngine";
 import { SimulatorSource } from "../sources/simulator";
 import { LiveSource } from "../sources/live";
+import { ReplaySource } from "../sources/replay";
 import { TrafficSource } from "../types/graph";
 import { useNetScopeStore } from "../store/useNetScopeStore";
+import { recorder } from "../services/recorder";
 
 export const GraphCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -22,7 +24,14 @@ export const GraphCanvas: React.FC = () => {
     });
     engineRef.current = engine;
 
-    const source: TrafficSource = trafficMode === "live" ? new LiveSource() : new SimulatorSource();
+    let source: TrafficSource;
+    if (trafficMode === "live") {
+      source = new LiveSource();
+    } else if (trafficMode === "replay") {
+      source = new ReplaySource("latest");
+    } else {
+      source = new SimulatorSource();
+    }
     sourceRef.current = source;
 
     engine.init().then(async () => {
@@ -45,6 +54,7 @@ export const GraphCanvas: React.FC = () => {
       // Subscribe to deltas
       source.onDelta((delta) => {
         if (!mounted) return;
+        recorder.recordDelta(delta);
         applyDelta(delta);
 
         const currentStore = useNetScopeStore.getState();
@@ -63,6 +73,7 @@ export const GraphCanvas: React.FC = () => {
 
         engine.updateGraph(filteredNodes, linksList, currentStore.layoutMode);
       });
+
 
       source.start();
     });

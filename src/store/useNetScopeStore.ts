@@ -28,6 +28,7 @@ interface NetScopeState {
   toggleLegend: () => void;
   setTrafficMode: (mode: "simulator" | "live" | "replay") => void;
   toggleRecording: () => void;
+  setRecording: (isRecording: boolean) => void;
   setSearchQuery: (query: string) => void;
   setActiveFilter: (filter: string | null) => void;
   setLayoutMode: (mode: "force" | "radial" | "geo" | "3d") => void;
@@ -146,6 +147,12 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
       isRecording: !s.isRecording,
       recordingSeconds: !s.isRecording ? 0 : s.recordingSeconds,
     })),
+  setRecording: (isRecording) =>
+    set({
+      isRecording,
+      recordingSeconds: 0,
+    }),
+
 
   setSearchQuery: (query) => set({ searchQuery: query }),
   setActiveFilter: (filter) =>

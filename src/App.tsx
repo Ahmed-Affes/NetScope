@@ -8,6 +8,7 @@ import { InspectorPanel } from "./components/InspectorPanel";
 import { FilterBar } from "./components/FilterBar";
 import { CommandPalette } from "./components/CommandPalette";
 import { NoPrivilegeBanner } from "./components/NoPrivilegeBanner";
+import { Timeline } from "./components/Timeline";
 import { GraphCanvas } from "./components/GraphCanvas";
 import { useNetScopeStore } from "./store/useNetScopeStore";
 import { commands } from "./bindings";
@@ -91,6 +92,7 @@ export const App: React.FC = () => {
         <LegendPanel />
         <InspectorPanel />
         <CommandPalette />
+        <Timeline />
       </div>
     </div>
   );

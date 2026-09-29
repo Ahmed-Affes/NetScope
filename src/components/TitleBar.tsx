@@ -1,6 +1,7 @@
 import React from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useNetScopeStore } from "../store/useNetScopeStore";
+import { recorder } from "../services/recorder";
 import {
   Activity,
   Maximize2,
@@ -15,13 +16,24 @@ export const TitleBar: React.FC = () => {
     trafficMode,
     setTrafficMode,
     isRecording,
-    toggleRecording,
+    setRecording,
     recordingSeconds,
     isSimPanelOpen,
     toggleSimPanel,
     layoutMode,
     setLayoutMode,
   } = useNetScopeStore();
+
+  const handleToggleRecord = async () => {
+    if (isRecording) {
+      await recorder.stopRecording();
+      setRecording(false);
+    } else {
+      await recorder.startRecording();
+      setRecording(true);
+    }
+  };
+
 
   const handleMinimize = async () => {
     try {
@@ -107,7 +119,7 @@ export const TitleBar: React.FC = () => {
 
         {/* Recording Toggle */}
         <button
-          onClick={toggleRecording}
+          onClick={handleToggleRecord}
           className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] border transition-all ${
             isRecording
               ? "bg-red-500/20 border-red-500/40 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)]"
