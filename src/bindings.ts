@@ -132,6 +132,21 @@ export const commands = {
     }
     return "Capture stopped";
   },
+
+  async blockRemoteIp(ip: string): Promise<string> {
+    if (isTauriEnvironment()) {
+      return await invoke("block_remote_ip", { ip });
+    }
+    return `Firewall rule for ${ip} staged (Web Preview)`;
+  },
+
+  async unblockRemoteIp(ip: string): Promise<string> {
+    if (isTauriEnvironment()) {
+      return await invoke("unblock_remote_ip", { ip });
+    }
+    return `Firewall rule for ${ip} removed (Web Preview)`;
+  },
 };
+
 
 

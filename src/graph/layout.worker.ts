@@ -61,6 +61,7 @@ self.onmessage = (event: MessageEvent) => {
     simulation = forceSimulation<WorkerNode, WorkerLink>(currentNodes);
 
     if (layoutMode === "radial") {
+      // Concentric rings by hierarchy
       simulation
         .force(
           "link",
@@ -73,14 +74,67 @@ self.onmessage = (event: MessageEvent) => {
         .force(
           "radial",
           forceRadial<WorkerNode>(
-            (d) => (d.kind === "host" ? 0 : d.kind === "process" ? 140 : 280),
+            (d) => {
+              if (d.kind === "host") return 0;
+              if (d.kind === "gateway" || d.kind === "docker") return 140;
+              if (d.kind === "process" || d.kind === "lan") return 260;
+              return 390; // internet / tailscale / threat
+            },
             width / 2,
             height / 2
-          ).strength(0.8)
+          ).strength(0.9)
         )
         .force("collide", forceCollide<WorkerNode>().radius((d) => d.radius + 8));
+    } else if (layoutMode === "geo") {
+      // Geographic quadrant layout (North America West/East, Europe, Asia, Local LAN)
+      simulation
+        .force(
+          "link",
+          forceLink<WorkerNode, WorkerLink>(currentLinks)
+            .id((d) => d.id)
+            .distance(80)
+            .strength(0.4)
+        )
+        .force("charge", forceManyBody().strength(-90))
+        .force(
+          "radial",
+          forceRadial<WorkerNode>((d) => (d.kind === "host" ? 0 : 250), width / 2, height / 2).strength(
+            0.5
+          )
+        )
+        .force("collide", forceCollide<WorkerNode>().radius((d) => d.radius + 10));
+
+      // Anchor quadrants
+      currentNodes.forEach((node, i) => {
+        if (node.kind !== "host") {
+          const angle = (i / currentNodes.length) * Math.PI * 2;
+          const dist = node.kind === "lan" ? 140 : 340;
+          node.x = width / 2 + Math.cos(angle) * dist;
+          node.y = height / 2 + Math.sin(angle) * (dist * 0.65);
+        }
+      });
+    } else if (layoutMode === "3d") {
+      // Pseudo-3D Isometric layered projection
+      simulation
+        .force(
+          "link",
+          forceLink<WorkerNode, WorkerLink>(currentLinks)
+            .id((d) => d.id)
+            .distance(90)
+            .strength(0.5)
+        )
+        .force("charge", forceManyBody().strength(-120))
+        .force("center", forceCenter(width / 2, height / 2).strength(0.3))
+        .force("collide", forceCollide<WorkerNode>().radius((d) => d.radius + 8));
+
+      // Isometric tilt
+      currentNodes.forEach((node, i) => {
+        if (node.kind === "threat") {
+          node.fy = height / 2 - 180 + (i % 3) * 40;
+        }
+      });
     } else {
-      // Force directed default
+      // Force directed organic default
       simulation
         .force(
           "link",

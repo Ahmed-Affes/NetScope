@@ -117,6 +117,26 @@ export const CommandPalette: React.FC = () => {
                 <Activity className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Radial Orbit Mode (Host Centre)</span>
               </Command.Item>
+              <Command.Item
+                onSelect={() => {
+                  setLayoutMode("geo");
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
+              >
+                <Activity className="w-3.5 h-3.5 text-blue-400" />
+                <span>Geographic Regional Layout</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => {
+                  setLayoutMode("3d");
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
+              >
+                <Activity className="w-3.5 h-3.5 text-fuchsia-400" />
+                <span>3D Isometric Layered Mode</span>
+              </Command.Item>
             </Command.Group>
 
             {/* Attack Simulations */}
@@ -166,7 +186,18 @@ export const CommandPalette: React.FC = () => {
                 <Radio className="w-3.5 h-3.5 text-red-400" />
                 <span>Toggle Session Recording</span>
               </Command.Item>
+              <Command.Item
+                onSelect={() => {
+                  window.dispatchEvent(new CustomEvent("netscope:show-onboarding"));
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
+              >
+                <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Show Onboarding Briefing</span>
+              </Command.Item>
             </Command.Group>
+
           </Command.List>
         </Command>
       </div>

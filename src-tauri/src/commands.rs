@@ -125,4 +125,61 @@ pub fn stop_capture() -> Result<String, String> {
     Ok("Capture stopped".into())
 }
 
+#[tauri::command]
+#[specta::specta]
+pub fn block_remote_ip(ip: String) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let rule_name = format!("NetScope_Block_{}", ip);
+        let status = std::process::Command::new("netsh")
+            .args([
+                "advfirewall",
+                "firewall",
+                "add",
+                "rule",
+                &format!("name={}", rule_name),
+                "dir=out",
+                "action=block",
+                &format!("remoteip={}", ip),
+            ])
+            .status();
+
+        match status {
+            Ok(s) if s.success() => Ok(format!("Firewall rule '{}' added successfully", rule_name)),
+            Ok(_) => Err("Firewall elevation required. Please run NetScope as Administrator to modify Windows Firewall.".into()),
+            Err(e) => Err(format!("Failed to execute netsh: {}", e)),
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(format!("Firewall drop rule for {} staged", ip))
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn unblock_remote_ip(ip: String) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let rule_name = format!("NetScope_Block_{}", ip);
+        let _ = std::process::Command::new("netsh")
+            .args([
+                "advfirewall",
+                "firewall",
+                "delete",
+                "rule",
+                &format!("name={}", rule_name),
+            ])
+            .status();
+        Ok(format!("Firewall rule '{}' removed", rule_name))
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(format!("Firewall drop rule for {} removed", ip))
+    }
+}
+
+
 

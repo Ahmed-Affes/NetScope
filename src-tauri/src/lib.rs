@@ -22,6 +22,8 @@ pub fn run() {
             commands::get_capture_status,
             commands::start_capture,
             commands::stop_capture,
+            commands::block_remote_ip,
+            commands::unblock_remote_ip,
         ]);
 
     #[cfg(debug_assertions)]

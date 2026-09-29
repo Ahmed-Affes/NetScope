@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNetScopeStore } from "../store/useNetScopeStore";
-import { Activity, Ban, Shield, X } from "lucide-react";
+import { Activity, Ban, Shield, ShieldCheck, X } from "lucide-react";
 import { Sparkline } from "./Sparkline";
+import { commands } from "../bindings";
 
 export const InspectorPanel: React.FC = () => {
   const {
@@ -13,6 +14,9 @@ export const InspectorPanel: React.FC = () => {
     selectLink,
   } = useNetScopeStore();
 
+  const [blockedIps, setBlockedIps] = useState<Set<string>>(new Set());
+  const [feedback, setFeedback] = useState<string | null>(null);
+
   const selectedNode = selectedNodeId ? nodes[selectedNodeId] : null;
   const selectedLink = selectedLinkId ? links[selectedLinkId] : null;
 
@@ -21,7 +25,9 @@ export const InspectorPanel: React.FC = () => {
   const handleClose = () => {
     selectNode(null);
     selectLink(null);
+    setFeedback(null);
   };
+
 
   const formatBytes = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -155,18 +161,51 @@ export const InspectorPanel: React.FC = () => {
             </div>
           )}
 
-          {/* Block Endpoint Button */}
+          {/* Block / Unblock Endpoint Button */}
           {selectedNode.ip && (
-            <button
-              onClick={() => {
-                alert(`Firewall block request for ${selectedNode.ip} prepared.`);
-              }}
-              className="w-full flex items-center justify-center gap-2 py-1.5 rounded bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 font-semibold text-[11px] transition-colors"
-            >
-              <Ban className="w-3.5 h-3.5" />
-              <span>Block Endpoint via OS Firewall</span>
-            </button>
+            <div className="space-y-1.5">
+              {blockedIps.has(selectedNode.ip) ? (
+                <button
+                  onClick={async () => {
+                    if (selectedNode.ip) {
+                      const res = await commands.unblockRemoteIp(selectedNode.ip);
+                      setBlockedIps((prev) => {
+                        const next = new Set(prev);
+                        next.delete(selectedNode.ip!);
+                        return next;
+                      });
+                      setFeedback(res);
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-1.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-semibold text-[11px] transition-colors"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Unblock via OS Firewall</span>
+                </button>
+              ) : (
+                <button
+                  onClick={async () => {
+                    if (selectedNode.ip) {
+                      const res = await commands.blockRemoteIp(selectedNode.ip);
+                      setBlockedIps((prev) => new Set(prev).add(selectedNode.ip!));
+                      setFeedback(res);
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-1.5 rounded bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 font-semibold text-[11px] transition-colors"
+                >
+                  <Ban className="w-3.5 h-3.5" />
+                  <span>Block Endpoint via OS Firewall</span>
+                </button>
+              )}
+
+              {feedback && (
+                <div className="text-[10px] p-1.5 rounded bg-black/50 border border-white/10 text-cyan-300 text-center font-mono">
+                  {feedback}
+                </div>
+              )}
+            </div>
           )}
+
         </div>
       )}
 
