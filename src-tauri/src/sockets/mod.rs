@@ -292,20 +292,20 @@ impl SocketPoller {
                 current_links
                     .entry(proc_remote_link_id.clone())
                     .or_insert_with(|| GraphLink {
-                    id: proc_remote_link_id,
-                    source: proc_id.clone(),
-                    target: remote_id.clone(),
-                    proto: entry.proto.clone(),
-                    port: entry.remote_port,
-                    service: None,
-                    bytes_in: 2048,
-                    bytes_out: 4096,
-                    rate: 750.0,
-                    packets: 6,
-                    state: Some(entry.state.clone()),
-                    first_seen: now,
-                    last_seen: now,
-                });
+                        id: proc_remote_link_id,
+                        source: proc_id.clone(),
+                        target: remote_id.clone(),
+                        proto: entry.proto.clone(),
+                        port: entry.remote_port,
+                        service: None,
+                        bytes_in: 2048,
+                        bytes_out: 4096,
+                        rate: 750.0,
+                        packets: 6,
+                        state: Some(entry.state.clone()),
+                        first_seen: now,
+                        last_seen: now,
+                    });
             }
         }
 
