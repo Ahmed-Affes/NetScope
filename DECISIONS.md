@@ -40,3 +40,8 @@ This document records architectural decisions, conventions, tradeoffs, and clari
 ## 9. Mobile Remote Viewer
 - **Decision:** Ephemeral Supabase Realtime broadcast channels allow mobile phones and tablets to connect via instant QR code and render the live network topology in a mobile-responsive WebGL view.
 - **Rationale:** Zero-install companion dashboard for monitoring server or desktop workstation traffic on a secondary screen or phone.
+
+## 10. Vercel Multi-Services Deployment
+- **Decision:** Configured `vercel.json` with `app` (Vite) as the primary public web service mapped to `/(.*)`. Excluded `src-tauri` from Vercel services.
+- **Rationale:** `src-tauri` is a desktop application shell requiring native OS desktop GUI windowing (WebKitGTK/Cocoa/WebView2) and socket capture libraries (`pcap`/`netstat2`), which are not supported or suitable for serverless web deployment. The web dashboard runs seamlessly in web simulation mode on Vercel without requiring native OS bindings.
+
