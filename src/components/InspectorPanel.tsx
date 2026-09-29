@@ -38,7 +38,7 @@ export const InspectorPanel: React.FC = () => {
   };
 
   return (
-    <div className="absolute top-14 right-4 z-50 w-84 cyber-panel shadow-[0_0_50px_rgba(0,0,0,0.9)] transition-all duration-200 border border-cyan-500/40 bg-[#070a12]/95 backdrop-blur-xl">
+    <div className="w-84 cyber-panel shadow-[0_0_50px_rgba(0,0,0,0.9)] transition-all duration-200 border border-cyan-500/40 bg-[#070a12]/95 backdrop-blur-xl pointer-events-auto max-h-[52vh] overflow-y-auto shrink-0">
       {/* Header */}
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/[0.06]">
         <div className="flex items-center gap-2">

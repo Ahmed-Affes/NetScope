@@ -3,8 +3,9 @@ import {
   forceLink,
   forceManyBody,
   forceCenter,
-  forceRadial,
   forceCollide,
+  forceX,
+  forceY,
   Simulation,
   SimulationNodeDatum,
   SimulationLinkDatum,
@@ -14,7 +15,8 @@ interface WorkerNode extends SimulationNodeDatum {
   id: string;
   kind: string;
   radius: number;
-  fixedCenter?: boolean;
+  targetX?: number;
+  targetY?: number;
 }
 
 interface WorkerLink extends SimulationLinkDatum<WorkerNode> {
@@ -31,129 +33,209 @@ let currentLayoutMode = "force";
 let currentWidth = 1200;
 let currentHeight = 800;
 
-function setupForces(mode: string, width: number, height: number) {
-  if (!simulation) return;
-
-  currentLayoutMode = mode;
-  currentWidth = width;
-  currentHeight = height;
-
+function computeLayoutTargets(mode: string, width: number, height: number) {
   const cx = width / 2;
   const cy = height / 2;
 
-  // Clear existing mode-specific forces
-  simulation.force("radial", null);
-  simulation.force("center", null);
-
   if (mode === "radial") {
-    // Concentric orbiting hierarchy
-    simulation
-      .force(
-        "link",
-        forceLink<WorkerNode, WorkerLink>(currentLinks)
-          .id((d) => d.id)
-          .distance((d) => {
-            const src = typeof d.source === "object" ? d.source.kind : "";
-            const tgt = typeof d.target === "object" ? d.target.kind : "";
-            if (src === "host" || tgt === "host") return 180;
-            return 120;
-          })
-          .strength(0.5)
-      )
-      .force(
-        "charge",
-        forceManyBody<WorkerNode>().strength((d) => (d.kind === "host" ? -600 : -250))
-      )
-      .force(
-        "radial",
-        forceRadial<WorkerNode>(
-          (d) => {
-            if (d.kind === "host") return 0;
-            if (d.kind === "gateway" || d.kind === "docker") return 180;
-            if (d.kind === "process" || d.kind === "lan") return 320;
-            return 460; // internet / threats / tailscale
-          },
-          cx,
-          cy
-        ).strength(0.85)
-      )
-      .force("collide", forceCollide<WorkerNode>().radius((d) => d.radius + 18).strength(0.85));
+    // 1. Group nodes into hierarchy rings
+    const ring0: WorkerNode[] = []; // Host
+    const ring1: WorkerNode[] = []; // Gateway, Docker, Tailscale
+    const ring2: WorkerNode[] = []; // Processes
+    const ring3: WorkerNode[] = []; // Endpoints, Internet, Threats
 
-    // Release fixed positions except host
+    for (const node of currentNodes) {
+      if (node.kind === "host") {
+        ring0.push(node);
+      } else if (node.kind === "gateway" || node.kind === "docker" || node.kind === "tailscale") {
+        ring1.push(node);
+      } else if (node.kind === "process") {
+        ring2.push(node);
+      } else {
+        ring3.push(node);
+      }
+    }
+
+    // Assign central host
+    ring0.forEach((n) => {
+      n.targetX = cx;
+      n.targetY = cy;
+      n.fx = cx;
+      n.fy = cy;
+    });
+
+    // Assign Ring 1 (r = 170)
+    const r1 = 170;
+    ring1.forEach((n, i) => {
+      const angle = (i / Math.max(ring1.length, 1)) * 2 * Math.PI - Math.PI / 2;
+      n.targetX = cx + Math.cos(angle) * r1;
+      n.targetY = cy + Math.sin(angle) * r1;
+      n.fx = undefined;
+      n.fy = undefined;
+    });
+
+    // Assign Ring 2 (r = 300)
+    const r2 = 300;
+    ring2.forEach((n, i) => {
+      const angle = (i / Math.max(ring2.length, 1)) * 2 * Math.PI - Math.PI / 3;
+      n.targetX = cx + Math.cos(angle) * r2;
+      n.targetY = cy + Math.sin(angle) * r2;
+      n.fx = undefined;
+      n.fy = undefined;
+    });
+
+    // Assign Ring 3 (r = 440)
+    const r3 = 440;
+    ring3.forEach((n, i) => {
+      const angle = (i / Math.max(ring3.length, 1)) * 2 * Math.PI;
+      n.targetX = cx + Math.cos(angle) * r3;
+      n.targetY = cy + Math.sin(angle) * r3;
+      n.fx = undefined;
+      n.fy = undefined;
+    });
+  } else if (mode === "geo") {
+    // 4 distinct geographic regional quadrants
+    const lanNodes: WorkerNode[] = [];
+    const cloudNodes: WorkerNode[] = [];
+    const internetNodes: WorkerNode[] = [];
+    const threatNodes: WorkerNode[] = [];
+
+    for (const node of currentNodes) {
+      if (node.kind === "host") {
+        node.targetX = cx;
+        node.targetY = cy;
+        node.fx = cx;
+        node.fy = cy;
+      } else if (node.kind === "lan") {
+        lanNodes.push(node);
+      } else if (node.kind === "docker" || node.kind === "process") {
+        cloudNodes.push(node);
+      } else if (node.kind === "threat") {
+        threatNodes.push(node);
+      } else {
+        internetNodes.push(node);
+      }
+    }
+
+    // Top-Left: Cloud / Local Services
+    const q1X = cx - 340;
+    const q1Y = cy - 200;
+    cloudNodes.forEach((n, i) => {
+      const angle = (i / Math.max(cloudNodes.length, 1)) * 2 * Math.PI;
+      const r = 50 + (i % 3) * 35;
+      n.targetX = q1X + Math.cos(angle) * r;
+      n.targetY = q1Y + Math.sin(angle) * r;
+      n.fx = undefined;
+      n.fy = undefined;
+    });
+
+    // Top-Right: Internet & CDNs
+    const q2X = cx + 340;
+    const q2Y = cy - 200;
+    internetNodes.forEach((n, i) => {
+      const angle = (i / Math.max(internetNodes.length, 1)) * 2 * Math.PI;
+      const r = 55 + (i % 3) * 35;
+      n.targetX = q2X + Math.cos(angle) * r;
+      n.targetY = q2Y + Math.sin(angle) * r;
+      n.fx = undefined;
+      n.fy = undefined;
+    });
+
+    // Bottom-Left: LAN & Gateway Devices
+    const q3X = cx - 340;
+    const q3Y = cy + 200;
+    lanNodes.forEach((n, i) => {
+      const angle = (i / Math.max(lanNodes.length, 1)) * 2 * Math.PI;
+      const r = 50 + (i % 3) * 35;
+      n.targetX = q3X + Math.cos(angle) * r;
+      n.targetY = q3Y + Math.sin(angle) * r;
+      n.fx = undefined;
+      n.fy = undefined;
+    });
+
+    // Bottom-Right: Threat Quarantine Sector
+    const q4X = cx + 340;
+    const q4Y = cy + 200;
+    threatNodes.forEach((n, i) => {
+      const angle = (i / Math.max(threatNodes.length, 1)) * 2 * Math.PI;
+      const r = 45 + (i % 3) * 35;
+      n.targetX = q4X + Math.cos(angle) * r;
+      n.targetY = q4Y + Math.sin(angle) * r;
+      n.fx = undefined;
+      n.fy = undefined;
+    });
+  } else if (mode === "3d") {
+    // 3D Isometric Layered Hologram Projection
+    currentNodes.forEach((node, i) => {
+      if (node.kind === "host") {
+        node.targetX = cx;
+        node.targetY = cy;
+        node.fx = cx;
+        node.fy = cy;
+        return;
+      }
+
+      // Elevation tiers: Threats = top (+1), Host/Proc = middle (0), LAN = bottom (-1)
+      const tier = node.kind === "threat" ? 1 : node.kind === "lan" || node.kind === "gateway" ? -1 : 0;
+      const spreadX = ((i % 7) - 3) * 75;
+      const spreadY = (Math.floor(i / 7) - 1) * 55;
+
+      // Isometric projection
+      node.targetX = cx + spreadX * 0.866 + tier * 70;
+      node.targetY = cy + spreadY * 0.5 - tier * 180;
+      node.fx = undefined;
+      node.fy = undefined;
+    });
+  } else {
+    // Organic Force mode
     currentNodes.forEach((n) => {
       if (n.kind === "host") {
+        n.targetX = cx;
+        n.targetY = cy;
         n.fx = cx;
         n.fy = cy;
-      } else if (!n.fixedCenter) {
+      } else {
         n.fx = undefined;
         n.fy = undefined;
       }
     });
-  } else if (mode === "geo") {
-    // Geographic Regional Quadrants
+  }
+}
+
+function configureSimulationForces(mode: string, width: number, height: number) {
+  if (!simulation) return;
+
+  const cx = width / 2;
+  const cy = height / 2;
+
+  // Clear mode forces
+  simulation.force("forceX", null);
+  simulation.force("forceY", null);
+  simulation.force("center", null);
+  simulation.force("charge", null);
+
+  computeLayoutTargets(mode, width, height);
+
+  if (mode === "radial" || mode === "geo" || mode === "3d") {
+    // Coordinate-directed target positioning
     simulation
+      .force(
+        "forceX",
+        forceX<WorkerNode>((d) => d.targetX ?? cx).strength(0.85)
+      )
+      .force(
+        "forceY",
+        forceY<WorkerNode>((d) => d.targetY ?? cy).strength(0.85)
+      )
       .force(
         "link",
         forceLink<WorkerNode, WorkerLink>(currentLinks)
           .id((d) => d.id)
-          .distance(110)
-          .strength(0.4)
+          .strength(0.04) // Gentle link tension that doesn't disrupt geometric alignment
       )
-      .force(
-        "charge",
-        forceManyBody<WorkerNode>().strength((d) => (d.kind === "host" ? -500 : -200))
-      )
-      .force("collide", forceCollide<WorkerNode>().radius((d) => d.radius + 16).strength(0.85));
-
-    // Position nodes into regional clusters
-    currentNodes.forEach((node, i) => {
-      if (node.kind === "host") {
-        node.fx = cx;
-        node.fy = cy;
-      } else {
-        const quadrantAngle =
-          node.kind === "lan"
-            ? Math.PI * 0.75 // Bottom-Left (Local LAN)
-            : node.kind === "docker" || node.kind === "process"
-            ? Math.PI * 1.25 // Top-Left (Local services)
-            : node.kind === "threat"
-            ? Math.PI * 0.25 // Bottom-Right (Threat sector)
-            : Math.PI * 1.75; // Top-Right (Cloud/Internet)
-
-        const dist = node.kind === "threat" ? 360 : 280;
-        const spread = ((i % 5) - 2) * 45;
-        node.x = cx + Math.cos(quadrantAngle) * dist + spread;
-        node.y = cy + Math.sin(quadrantAngle) * (dist * 0.75) + spread;
-      }
-    });
-  } else if (mode === "3d") {
-    // Pseudo-3D Isometric Layered Projection
-    simulation
-      .force(
-        "link",
-        forceLink<WorkerNode, WorkerLink>(currentLinks)
-          .id((d) => d.id)
-          .distance(140)
-          .strength(0.5)
-      )
-      .force("charge", forceManyBody<WorkerNode>().strength(-350))
-      .force("center", forceCenter(cx, cy).strength(0.04))
-      .force("collide", forceCollide<WorkerNode>().radius((d) => d.radius + 18).strength(0.85));
-
-    currentNodes.forEach((node, i) => {
-      if (node.kind === "host") {
-        node.fx = cx;
-        node.fy = cy;
-      } else if (node.kind === "threat") {
-        // High plane for threats
-        node.y = cy - 220 + ((i % 3) - 1) * 50;
-      } else if (node.kind === "lan") {
-        // Low plane for LAN
-        node.y = cy + 200 + ((i % 3) - 1) * 50;
-      }
-    });
+      .force("collide", forceCollide<WorkerNode>().radius((d) => d.radius + 16).strength(0.8));
   } else {
-    // Balanced Force-Directed Organic Graph
+    // Pure organic force-directed physics
     simulation
       .force(
         "link",
@@ -162,31 +244,21 @@ function setupForces(mode: string, width: number, height: number) {
           .distance((d) => {
             const src = typeof d.source === "object" ? d.source.kind : "";
             const tgt = typeof d.target === "object" ? d.target.kind : "";
-            if (src === "host" || tgt === "host") return 220;
-            if (src === "threat" || tgt === "threat") return 190;
-            return 150;
+            if (src === "host" || tgt === "host") return 210;
+            if (src === "threat" || tgt === "threat") return 180;
+            return 140;
           })
           .strength(0.65)
       )
       .force(
         "charge",
         forceManyBody<WorkerNode>().strength((d) =>
-          d.kind === "host" ? -900 : d.kind === "process" || d.kind === "docker" ? -550 : -320
+          d.kind === "host" ? -800 : d.kind === "process" ? -450 : -250
         )
       )
       .force("center", forceCenter(cx, cy).strength(0.035))
-      .force("collide", forceCollide<WorkerNode>().radius((d) => d.radius + 20).strength(0.9));
-
-    // Anchor host in center
-    currentNodes.forEach((n) => {
-      if (n.kind === "host") {
-        n.fx = cx;
-        n.fy = cy;
-      }
-    });
+      .force("collide", forceCollide<WorkerNode>().radius((d) => d.radius + 20).strength(0.85));
   }
-
-  simulation.alpha(0.6).alphaDecay(0.025).restart();
 }
 
 self.onmessage = (event: MessageEvent) => {
@@ -201,23 +273,22 @@ self.onmessage = (event: MessageEvent) => {
 
     const incomingNodeIds = new Set(nodes.map((n: { id: string }) => n.id));
 
-    // Clean up removed nodes
+    // Remove deleted nodes
     for (const [id] of nodeMap.entries()) {
       if (!incomingNodeIds.has(id)) {
         nodeMap.delete(id);
       }
     }
 
-    // Update or add nodes while preserving existing positions
+    // Add or update nodes while keeping previous positions
     nodes.forEach((n: { id: string; kind: string }, i: number) => {
       const isHost = n.kind === "host";
-      const radius = isHost ? 28 : n.kind === "process" ? 14 : n.kind === "threat" ? 14 : 10;
+      const radius = isHost ? 26 : n.kind === "process" ? 14 : n.kind === "threat" ? 14 : 10;
 
       let existing = nodeMap.get(n.id);
       if (!existing) {
-        // Initialize position nicely in an outward spiral
         const angle = i * 0.45;
-        const dist = isHost ? 0 : 120 + (i % 6) * 45;
+        const dist = isHost ? 0 : 130 + (i % 6) * 45;
         existing = {
           id: n.id,
           kind: n.kind,
@@ -229,7 +300,6 @@ self.onmessage = (event: MessageEvent) => {
         };
         nodeMap.set(n.id, existing);
       } else {
-        // Keep position, update metadata
         existing.kind = n.kind;
         existing.radius = radius;
         if (isHost) {
@@ -241,7 +311,6 @@ self.onmessage = (event: MessageEvent) => {
 
     currentNodes = Array.from(nodeMap.values());
 
-    // Filter valid links
     currentLinks = links
       .filter((l: { source: string; target: string }) =>
         nodeMap.has(l.source) && nodeMap.has(l.target)
@@ -278,11 +347,14 @@ self.onmessage = (event: MessageEvent) => {
       simulation.nodes(currentNodes);
     }
 
-    const modeChanged = layoutMode && layoutMode !== currentLayoutMode;
-    setupForces(layoutMode || currentLayoutMode, currentWidth, currentHeight);
+    const mode = layoutMode || currentLayoutMode;
+    const modeChanged = mode !== currentLayoutMode;
+    currentLayoutMode = mode;
+
+    configureSimulationForces(mode, currentWidth, currentHeight);
 
     if (modeChanged) {
-      simulation.alpha(0.8).restart();
+      simulation.alpha(0.85).alphaDecay(0.02).restart();
     } else {
       simulation.alpha(0.3).restart();
     }
@@ -293,12 +365,10 @@ self.onmessage = (event: MessageEvent) => {
       if (isFixed) {
         node.fx = x;
         node.fy = y;
-        node.fixedCenter = true;
         if (simulation) simulation.alphaTarget(0.3).restart();
       } else {
         node.fx = node.kind === "host" ? currentWidth / 2 : undefined;
         node.fy = node.kind === "host" ? currentHeight / 2 : undefined;
-        node.fixedCenter = false;
         if (simulation) simulation.alphaTarget(0);
       }
     }

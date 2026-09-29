@@ -14,7 +14,7 @@ import { useNetScopeStore } from "../store/useNetScopeStore";
 import { Alert } from "../types/graph";
 
 export const AlertFeed: React.FC = () => {
-  const { alerts, selectNode, selectLink, selectedNodeId, selectedLinkId } = useNetScopeStore();
+  const { alerts, selectNode, selectLink } = useNetScopeStore();
   const [muted, setMuted] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
   const [ackedIds, setAckedIds] = useState<Set<string>>(new Set());
@@ -40,15 +40,8 @@ export const AlertFeed: React.FC = () => {
     if (alert.linkId) selectLink(alert.linkId);
   };
 
-  // If InspectorPanel is open, shift AlertFeed down so both are visible or AlertFeed does not occlude the inspector
-  const hasInspectorOpen = !!(selectedNodeId || selectedLinkId);
-
   return (
-    <div
-      className={`absolute ${
-        hasInspectorOpen ? "bottom-20 right-4" : "top-14 right-4"
-      } z-30 w-80 flex flex-col gap-2 pointer-events-auto transition-all duration-300`}
-    >
+    <div className="w-84 flex flex-col gap-2 pointer-events-auto transition-all duration-300 shrink-0">
       {/* Alert Header / Controls */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-[#0e121a]/95 border border-rose-500/40 rounded-lg backdrop-blur-md shadow-[0_0_20px_rgba(244,63,94,0.2)]">
         <div className="flex items-center gap-2">

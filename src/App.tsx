@@ -14,14 +14,11 @@ import { OnboardingModal } from "./components/OnboardingModal";
 import { RemoteViewerModal } from "./components/RemoteViewerModal";
 import { GraphCanvas } from "./components/GraphCanvas";
 
-
-
 import { useNetScopeStore } from "./store/useNetScopeStore";
 import { commands } from "./bindings";
 
-
 export const App: React.FC = () => {
-  const { setMetrics } = useNetScopeStore();
+  const { setMetrics, openCommandPalette } = useNetScopeStore();
 
   // Load system metrics periodically
   useEffect(() => {
@@ -54,9 +51,11 @@ export const App: React.FC = () => {
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
+        openCommandPalette();
       } else if (e.key === "Escape") {
         useNetScopeStore.getState().selectNode(null);
         useNetScopeStore.getState().selectLink(null);
+        useNetScopeStore.getState().closeCommandPalette();
       } else if (e.key === "1") {
         useNetScopeStore.getState().setLayoutMode("force");
       } else if (e.key === "2") {
@@ -70,7 +69,7 @@ export const App: React.FC = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [openCommandPalette]);
 
   return (
     <div className="relative h-screen w-screen flex flex-col bg-[#07090d] text-[#e6edf3] overflow-hidden select-none font-mono">
@@ -89,15 +88,27 @@ export const App: React.FC = () => {
         {/* WebGL Canvas Graph Engine (PixiJS v8) */}
         <GraphCanvas />
 
-        {/* Floating Cyber Panels matching user screenshot */}
+        {/* Top Centered Status & Filters */}
         <NoPrivilegeBanner />
         <FilterBar />
-        <MetricsPanel />
-        <AtkSimPanel />
+
+        {/* Left Cyber Dock (Metrics & ATK-SIM cleanly stacked, never overlapping) */}
+        <div className="absolute top-14 left-4 z-40 flex flex-col gap-2.5 max-h-[calc(100vh-80px)] pointer-events-none">
+          <MetricsPanel />
+          <AtkSimPanel />
+        </div>
+
+        {/* Right Cyber Dock (Inspector & Security Alerts cleanly stacked, never overlapping) */}
+        <div className="absolute top-14 right-4 z-40 flex flex-col gap-2.5 max-h-[calc(100vh-80px)] pointer-events-none">
+          <InspectorPanel />
+          <AlertFeed />
+        </div>
+
+        {/* Bottom Bar: Center Stats & Right Legend */}
         <StatsPill />
         <LegendPanel />
-        <InspectorPanel />
-        <AlertFeed />
+
+        {/* Modals & Dialogs */}
         <CommandPalette />
         <Timeline />
         <OnboardingModal />

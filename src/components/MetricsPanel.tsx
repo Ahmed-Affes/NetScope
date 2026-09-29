@@ -10,7 +10,7 @@ export const MetricsPanel: React.FC = () => {
   };
 
   return (
-    <div className="absolute top-14 left-4 z-40 w-64 cyber-panel text-xs transition-all duration-200">
+    <div className="w-68 cyber-panel text-xs transition-all duration-200 pointer-events-auto shadow-2xl shrink-0">
       {/* Header */}
       <div
         onClick={toggleMetrics}

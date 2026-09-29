@@ -28,92 +28,112 @@ export const LegendPanel: React.FC = () => {
     { label: "UDP", color: "#94a3b8", filter: "proto:udp" },
   ];
 
+  if (!isLegendOpen) {
+    return (
+      <div className="absolute bottom-4 right-4 z-40">
+        <button
+          onClick={toggleLegend}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0e121a]/90 hover:bg-[#141a26] border border-white/[0.08] hover:border-cyan-500/40 text-slate-300 hover:text-cyan-300 text-xs font-mono backdrop-blur-md shadow-xl transition-all"
+        >
+          <span className="w-2 h-2 rounded-full bg-cyan-400" />
+          <span className="font-semibold text-[11px] tracking-wider uppercase">LEGEND</span>
+          <ChevronUp className="w-3.5 h-3.5 text-slate-500 ml-1" />
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="absolute bottom-4 right-4 z-40 w-44 cyber-panel text-xs transition-all duration-200">
+    <div className="absolute bottom-4 right-4 z-40 w-48 cyber-panel text-xs transition-all duration-200 shadow-2xl max-h-[70vh] overflow-y-auto">
       {/* Header */}
       <div
         onClick={toggleLegend}
         className="flex items-center justify-between px-3 py-2 cursor-pointer border-b border-white/[0.06] hover:bg-white/[0.02]"
       >
-        <span className="font-bold tracking-wider text-slate-300 text-[11px]">
+        <span className="font-bold tracking-wider text-slate-300 text-[11px] uppercase">
           Legend
         </span>
         <button className="text-slate-400 hover:text-slate-200">
-          {isLegendOpen ? (
-            <ChevronDown className="w-3.5 h-3.5" />
-          ) : (
-            <ChevronUp className="w-3.5 h-3.5" />
-          )}
+          <ChevronDown className="w-3.5 h-3.5" />
         </button>
       </div>
 
       {/* Body */}
-      {isLegendOpen && (
-        <div className="p-2.5 space-y-3">
-          {/* Nodes */}
-          <div>
-            <div className="text-[10px] font-bold text-slate-400 tracking-wider mb-1.5 uppercase">
-              Nodes
-            </div>
-            <div className="space-y-1">
-              {nodeTypes.map((t) => {
-                const isFiltered = activeFilter === t.filter;
-                return (
-                  <div
-                    key={t.label}
-                    onClick={() => setActiveFilter(t.filter)}
-                    className={`flex items-center gap-2 px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
-                      isFiltered
-                        ? "bg-white/[0.1] text-white font-semibold"
-                        : "text-slate-300 hover:bg-white/[0.04]"
-                    }`}
-                  >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shadow-[0_0_6px_var(--glow)]"
-                      style={
-                        {
-                          backgroundColor: t.color,
-                          "--glow": t.color,
-                        } as React.CSSProperties
-                      }
-                    />
-                    <span className="text-[11px]">{t.label}</span>
-                  </div>
-                );
-              })}
-            </div>
+      <div className="p-2.5 space-y-3">
+        {/* Nodes */}
+        <div>
+          <div className="text-[10px] font-bold text-slate-400 tracking-wider mb-1.5 uppercase">
+            Nodes
           </div>
-
-          {/* Connections */}
-          <div className="pt-2 border-t border-white/[0.05]">
-            <div className="text-[10px] font-bold text-slate-400 tracking-wider mb-1.5 uppercase">
-              Connections
-            </div>
-            <div className="space-y-1">
-              {linkTypes.map((t) => {
-                const isFiltered = activeFilter === t.filter;
-                return (
-                  <div
-                    key={t.label}
-                    onClick={() => setActiveFilter(t.filter)}
-                    className={`flex items-center gap-2 px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
-                      isFiltered
-                        ? "bg-white/[0.1] text-white font-semibold"
-                        : "text-slate-300 hover:bg-white/[0.04]"
-                    }`}
-                  >
+          <div className="space-y-1">
+            {nodeTypes.map((t) => {
+              const isFiltered = activeFilter === t.filter;
+              return (
+                <div
+                  key={t.label}
+                  onClick={() => setActiveFilter(t.filter)}
+                  className={`flex items-center justify-between p-1 rounded cursor-pointer transition-colors ${
+                    isFiltered ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
                     <span
-                      className="w-3 h-[2px] rounded-full"
+                      className="w-2 h-2 rounded-full"
                       style={{ backgroundColor: t.color }}
                     />
-                    <span className="text-[10px] font-mono">{t.label}</span>
+                    <span
+                      className={`text-[11px] ${
+                        isFiltered
+                          ? "text-white font-semibold"
+                          : "text-slate-400"
+                      }`}
+                    >
+                      {t.label}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         </div>
-      )}
+
+        {/* Links */}
+        <div>
+          <div className="text-[10px] font-bold text-slate-400 tracking-wider mb-1.5 uppercase">
+            Traffic
+          </div>
+          <div className="space-y-1">
+            {linkTypes.map((t) => {
+              const isFiltered = activeFilter === t.filter;
+              return (
+                <div
+                  key={t.label}
+                  onClick={() => setActiveFilter(t.filter)}
+                  className={`flex items-center justify-between p-1 rounded cursor-pointer transition-colors ${
+                    isFiltered ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="w-3 h-0.5 rounded-full"
+                      style={{ backgroundColor: t.color }}
+                    />
+                    <span
+                      className={`text-[11px] ${
+                        isFiltered
+                          ? "text-white font-semibold"
+                          : "text-slate-400"
+                      }`}
+                    >
+                      {t.label}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

@@ -382,7 +382,7 @@ export const AtkSimPanel: React.FC = () => {
 
 
   return (
-    <div className="absolute top-72 left-4 z-40 w-72 cyber-panel transition-all duration-200 shadow-2xl">
+    <div className="w-68 cyber-panel transition-all duration-200 shadow-2xl pointer-events-auto flex flex-col max-h-[48vh] overflow-hidden shrink-0">
       {/* Header */}
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/[0.06]">
         <div className="flex items-center gap-2">
