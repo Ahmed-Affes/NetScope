@@ -22,8 +22,11 @@ export class LiveSource implements TrafficSource {
       console.warn("Failed to load initial socket snapshot:", e);
     }
 
-    // 1 Hz socket poller interval
+    // 2 Hz socket poller interval with concurrency guard
+    let isPolling = false;
     this.intervalId = window.setInterval(async () => {
+      if (isPolling) return;
+      isPolling = true;
       try {
         const delta: GraphDelta = await commands.getSocketDelta();
 
@@ -70,8 +73,10 @@ export class LiveSource implements TrafficSource {
         }
       } catch (err) {
         console.error("Live socket poller tick failed:", err);
+      } finally {
+        isPolling = false;
       }
-    }, 1000);
+    }, 2000);
   }
 
   public async stop(): Promise<void> {

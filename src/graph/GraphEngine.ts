@@ -194,6 +194,13 @@ export class GraphEngine {
         this.nodesContainer.removeChild(renderNode.container);
         this.labelsContainer.removeChild(renderNode.labelText);
         this.labelsContainer.removeChild(renderNode.labelBg);
+        try {
+          renderNode.container.destroy({ children: true });
+          renderNode.labelText.destroy();
+          renderNode.labelBg.destroy();
+        } catch {
+          // Ignore if already cleaned
+        }
         this.nodesMap.delete(id);
         this.nodePositions.delete(id);
       }
@@ -337,6 +344,9 @@ export class GraphEngine {
       }
     }
 
+    // Batch links into style buckets to eliminate individual stroke tessellation
+    const buckets = new Map<string, { color: number; alpha: number; width: number; coords: number[] }>();
+
     for (const link of this.linksMap.values()) {
       const src = this.nodePositions.get(link.source);
       const tgt = this.nodePositions.get(link.target);
@@ -348,13 +358,26 @@ export class GraphEngine {
 
       const color = getLinkColor(link.port, link.proto);
       const alpha = isConnected ? (link.rate > 0 ? 0.75 : 0.3) : 0.08;
+      const width = link.rate > 1000 ? 1.5 : 1;
 
-      this.linksGraphics.moveTo(src.x, src.y);
-      this.linksGraphics.lineTo(tgt.x, tgt.y);
+      const key = `${color}_${alpha}_${width}`;
+      let bucket = buckets.get(key);
+      if (!bucket) {
+        bucket = { color, alpha, width, coords: [] };
+        buckets.set(key, bucket);
+      }
+      bucket.coords.push(src.x, src.y, tgt.x, tgt.y);
+    }
+
+    for (const bucket of buckets.values()) {
+      for (let i = 0; i < bucket.coords.length; i += 4) {
+        this.linksGraphics.moveTo(bucket.coords[i], bucket.coords[i + 1]);
+        this.linksGraphics.lineTo(bucket.coords[i + 2], bucket.coords[i + 3]);
+      }
       this.linksGraphics.stroke({
-        width: link.rate > 1000 ? 1.5 : 1,
-        color,
-        alpha,
+        width: bucket.width,
+        color: bucket.color,
+        alpha: bucket.alpha,
       });
     }
 

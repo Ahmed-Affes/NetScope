@@ -111,7 +111,7 @@ export const GraphCanvas: React.FC = () => {
     };
   }, [applyDelta, selectNode, selectLink, trafficMode]);
 
-  const { activeFilter, searchQuery, graphVersion } = useNetScopeStore();
+  const { activeFilter, searchQuery } = useNetScopeStore();
 
   // Handle smooth layout mode and filter transitions reactively
   useEffect(() => {
@@ -145,7 +145,7 @@ export const GraphCanvas: React.FC = () => {
 
       engineRef.current.updateGraph(filteredNodes, filteredLinks, layoutMode);
     }
-  }, [layoutMode, activeFilter, searchQuery, graphVersion]);
+  }, [layoutMode, activeFilter, searchQuery]);
 
   return (
     <div

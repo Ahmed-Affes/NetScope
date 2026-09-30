@@ -407,10 +407,24 @@ self.onmessage = (event: MessageEvent) => {
         target: l.target,
       }));
 
+    const mode = layoutMode || currentLayoutMode;
+    const modeChanged = mode !== currentLayoutMode;
+    currentLayoutMode = mode;
+
+    const prevCount = currentNodes.length;
+    const structureChanged = nodeMap.size !== prevCount || modeChanged;
+
     if (!simulation) {
       simulation = forceSimulation<WorkerNode, WorkerLink>(currentNodes);
 
+      let lastTickSent = 0;
       simulation.on("tick", () => {
+        const now = Date.now();
+        if (now - lastTickSent < 16 && simulation && simulation.alpha() > 0.03) {
+          return;
+        }
+        lastTickSent = now;
+
         const positions = new Float32Array(currentNodes.length * 2);
         const ids: string[] = [];
 
@@ -434,16 +448,12 @@ self.onmessage = (event: MessageEvent) => {
       simulation.nodes(currentNodes);
     }
 
-    const mode = layoutMode || currentLayoutMode;
-    const modeChanged = mode !== currentLayoutMode;
-    currentLayoutMode = mode;
-
     configureSimulationForces(mode, currentWidth, currentHeight);
 
     if (modeChanged) {
-      simulation.alpha(0.85).alphaDecay(0.02).restart();
-    } else {
-      simulation.alpha(0.3).restart();
+      simulation.alpha(0.85).alphaDecay(0.035).restart();
+    } else if (structureChanged) {
+      simulation.alpha(0.18).alphaDecay(0.045).restart();
     }
   } else if (type === "DRAG_NODE") {
     const { id, x, y, isFixed } = payload;

@@ -21,6 +21,8 @@ pub struct SocketEntry {
 
 pub struct SocketPoller {
     system: System,
+    proc_cache: HashMap<u32, (Option<String>, Option<String>)>,
+    last_proc_refresh: u64,
     previous_nodes: HashMap<String, GraphNode>,
     previous_links: HashMap<String, GraphLink>,
 }
@@ -31,6 +33,8 @@ impl Default for SocketPoller {
         system.refresh_all();
         Self {
             system,
+            proc_cache: HashMap::new(),
+            last_proc_refresh: now_ms(),
             previous_nodes: HashMap::new(),
             previous_links: HashMap::new(),
         }
@@ -44,15 +48,25 @@ impl SocketPoller {
         poller
     }
 
-    pub fn refresh_processes(&mut self) {
-        self.system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    pub fn refresh_processes_if_needed(&mut self) {
+        let now = now_ms();
+        if now.saturating_sub(self.last_proc_refresh) > 10_000 {
+            self.system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+            self.last_proc_refresh = now;
+        }
     }
 
-    pub fn get_process_info(&self, pid: u32) -> (Option<String>, Option<String>) {
+    pub fn get_process_info(&mut self, pid: u32) -> (Option<String>, Option<String>) {
+        if let Some(cached) = self.proc_cache.get(&pid) {
+            return cached.clone();
+        }
+
         if let Some(proc) = self.system.process(Pid::from(pid as usize)) {
             let name = proc.name().to_string_lossy().to_string();
             let path = proc.exe().map(|p| p.to_string_lossy().to_string());
-            (Some(name), path)
+            let info = (Some(name), path);
+            self.proc_cache.insert(pid, info.clone());
+            info
         } else {
             (None, None)
         }
@@ -98,13 +112,19 @@ impl SocketPoller {
     }
 
     pub fn scan_sockets(&mut self) -> Vec<SocketEntry> {
-        self.refresh_processes();
+        self.refresh_processes_if_needed();
         let mut entries = Vec::new();
 
         #[cfg(target_os = "windows")]
         {
-            // 1. Scan TCP sockets
-            if let Ok(output) = Command::new("netstat").args(["-ano", "-p", "tcp"]).output() {
+            use std::os::windows::process::CommandExt;
+
+            // 1. Scan TCP sockets with CREATE_NO_WINDOW
+            let mut tcp_cmd = Command::new("netstat");
+            tcp_cmd.args(["-ano", "-p", "tcp"]);
+            tcp_cmd.creation_flags(0x08000000);
+
+            if let Ok(output) = tcp_cmd.output() {
                 if let Ok(text) = String::from_utf8(output.stdout) {
                     for line in text.lines() {
                         let parts: Vec<&str> = line.split_whitespace().collect();
@@ -113,6 +133,11 @@ impl SocketPoller {
                             let foreign_addr = parts[2];
                             let state = parts[3].to_string();
                             let pid_val = parts[4].parse::<u32>().ok();
+
+                            // Skip dead TIME_WAIT sockets or system idle PID 0
+                            if pid_val == Some(0) || state.eq_ignore_ascii_case("TIME_WAIT") {
+                                continue;
+                            }
 
                             let (l_ip, l_port) = parse_endpoint(local_addr);
                             let (r_ip, r_port) = parse_endpoint(foreign_addr);
@@ -139,8 +164,12 @@ impl SocketPoller {
                 }
             }
 
-            // 2. Scan UDP sockets (background apps, voice, streaming, local services)
-            if let Ok(output) = Command::new("netstat").args(["-ano", "-p", "udp"]).output() {
+            // 2. Scan UDP sockets with CREATE_NO_WINDOW
+            let mut udp_cmd = Command::new("netstat");
+            udp_cmd.args(["-ano", "-p", "udp"]);
+            udp_cmd.creation_flags(0x08000000);
+
+            if let Ok(output) = udp_cmd.output() {
                 if let Ok(text) = String::from_utf8(output.stdout) {
                     for line in text.lines() {
                         let parts: Vec<&str> = line.split_whitespace().collect();
@@ -152,6 +181,11 @@ impl SocketPoller {
                             } else {
                                 parts[3].parse::<u32>().ok()
                             };
+
+                            // Skip UDP sockets with PID 0
+                            if pid_val == Some(0) {
+                                continue;
+                            }
 
                             let (l_ip, l_port) = parse_endpoint(local_addr);
                             let (r_ip, r_port) = parse_endpoint(foreign_addr);
@@ -330,10 +364,16 @@ impl SocketPoller {
                     threat: None,
                 });
 
-                // Link proc -> remote endpoint
-                let proc_remote_link_id = format!("link:{}->{}:{}", proc_id, entry.remote_ip, entry.remote_port);
+                // Link proc -> remote endpoint (aggregate by process + remote IP)
+                let proc_remote_link_id = format!("link:{}->{}", proc_id, remote_id);
                 current_links
                     .entry(proc_remote_link_id.clone())
+                    .and_modify(|l| {
+                        l.bytes_in += 1024;
+                        l.bytes_out += 2048;
+                        l.rate += 250.0;
+                        l.packets += 2;
+                    })
                     .or_insert_with(|| GraphLink {
                         id: proc_remote_link_id,
                         source: proc_id.clone(),

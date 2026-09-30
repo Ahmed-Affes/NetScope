@@ -38,13 +38,25 @@ pub fn get_system_metrics() -> SystemMetrics {
         0.0
     };
 
-    let disks = Disks::new_with_refreshed_list();
-    let mut disk_free = 0u64;
-    let mut disk_total = 0u64;
-    for disk in &disks {
-        disk_free += disk.available_space();
-        disk_total += disk.total_space();
-    }
+    static LAST_DISK_CHECK: Mutex<(u64, u64, u64)> = Mutex::new((0, 0, 0));
+    let now = crate::sockets::now_ms();
+    let (disk_free, disk_total) = {
+        let mut disk_guard = LAST_DISK_CHECK.lock().unwrap();
+        if now.saturating_sub(disk_guard.2) > 30_000 || disk_guard.1 == 0 {
+            let disks = Disks::new_with_refreshed_list();
+            let mut free = 0u64;
+            let mut total = 0u64;
+            for disk in &disks {
+                free += disk.available_space();
+                total += disk.total_space();
+            }
+            *disk_guard = (free, total, now);
+            (free, total)
+        } else {
+            (disk_guard.0, disk_guard.1)
+        }
+    };
+
     let disk_pct = if disk_total > 0 {
         ((disk_total - disk_free) as f32 / disk_total as f32) * 100.0
     } else {

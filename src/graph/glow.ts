@@ -7,7 +7,8 @@ const textureCache = new Map<string, Texture>();
  * Creates a sleek neon cyber glow texture using an offscreen canvas.
  * Produces crisp neon haloes without blowing out into blinding white fog.
  */
-export function createGlowTexture(color: number, radius = 32): Texture {
+export function createGlowTexture(color: number, rawRadius = 32): Texture {
+  const radius = Math.max(Math.round(rawRadius), 8);
   const key = `${color}_${radius}`;
   if (textureCache.has(key)) {
     return textureCache.get(key)!;

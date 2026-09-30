@@ -14,7 +14,7 @@ export class ParticleSystem {
   public container: Container;
   private pool: Particle[] = [];
   private activeCount = 0;
-  private maxParticles = 2000;
+  private maxParticles = 150;
 
   constructor() {
     this.container = new Container();
