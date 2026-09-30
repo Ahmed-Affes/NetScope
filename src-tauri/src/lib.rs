@@ -25,8 +25,11 @@ pub fn run() {
         commands::open_external_url,
     ]);
 
-    #[cfg(debug_assertions)]
-    let _ = builder.export(specta_typescript::Typescript::default(), "../src/bindings.ts");
+    // bindings.ts is maintained manually in src/bindings.ts
+    // The file uses dynamic import of @tauri-apps/api/core so it works in both
+    // Tauri desktop mode and CI (no Tauri runtime) without regeneration.
+    // #[cfg(debug_assertions)]
+    // let _ = builder.export(specta_typescript::Typescript::default(), "../src/bindings.ts");
 
     tauri::Builder::default()
         .invoke_handler(builder.invoke_handler())

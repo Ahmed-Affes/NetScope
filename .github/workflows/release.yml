@@ -20,27 +20,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 12
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: "pnpm"
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile=false
-
-      - name: Build Frontend
-        run: pnpm build
+      - name: Install Node dependencies
+        run: npm install
 
       - name: Build Tauri Desktop Bundle
         uses: tauri-apps/tauri-action@v1
@@ -50,20 +41,20 @@ jobs:
           tagName: v__VERSION__
           releaseName: "NetScope Desktop v__VERSION__"
           releaseBody: |
-            ### NetScope Desktop Release 🛰️
-            
-            Autonomous Network Intelligence & Cyber Threat Visualizer.
-            
-            #### 📦 Download & Install:
-            - Download the Windows installer (`.exe`) below.
-            - Run the setup file to install NetScope on your PC.
-            
-            #### ✨ Key Features:
-            - **60 FPS WebGL Topology**: PixiJS v8 force-directed network graph.
-            - **Process Attribution**: Maps connections to local executables (`PID`) and containers.
-            - **Real-Time Threat Engine**: Cobalt Strike C2 beacon detection, port scans, and exfiltration alerts.
-            - **ATK-SIM**: 7 built-in cyber attack vectors for live demonstrations.
-            - **Zero-Local-DB**: RAM-only execution and encrypted cloud sync.
+            ### NetScope Desktop Release
+
+            Real-time Windows network topology visualizer & cyber threat monitor.
+
+            #### Download & Install:
+            - Download the `.exe` installer below and run it.
+
+            #### What's included:
+            - Live PC socket table reader (processes, IPs, ports)
+            - ARP cache scanner (LAN gateway & device discovery)
+            - 60 FPS WebGL force-directed network graph (PixiJS v8)
+            - Real-time threat detection (SSH brute-force, C2 beacons, port scans)
+            - Session recording & replay with node drag positions
+            - ATK-SIM panel with 7 built-in cyber attack simulations
           releaseDraft: false
           prerelease: false
 

@@ -66,7 +66,7 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
   links: {},
   metrics: initialMetrics,
   alerts: [],
-  trafficMode: "simulator",
+  trafficMode: "live",
   isRecording: false,
   recordingSeconds: 0,
   selectedNodeId: null,
