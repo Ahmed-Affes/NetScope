@@ -1,3 +1,5 @@
+import { commands } from "../bindings";
+
 export interface UpdateInfo {
   version: string;
   tagName: string;
@@ -148,16 +150,16 @@ class UpdateService {
 
   public async openDownload(url: string): Promise<void> {
     try {
-      if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
-        // Try Tauri shell open
-        const { open } = await import("@tauri-apps/plugin-shell");
-        await open(url);
-        return;
-      }
+      await commands.openExternalUrl(url);
+      return;
     } catch (err) {
-      console.warn("Tauri shell open failed, falling back to window.open:", err);
+      console.warn("commands.openExternalUrl failed:", err);
     }
-    window.open(url, "_blank");
+    try {
+      window.open(url, "_blank");
+    } catch {
+      window.location.href = url;
+    }
   }
 }
 

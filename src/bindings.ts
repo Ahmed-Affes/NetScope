@@ -268,6 +268,14 @@ export const commands = {
     }
     return `Firewall rule for ${ip} removed (Web Preview)`;
   },
+
+  async openExternalUrl(url: string): Promise<string> {
+    if (isTauriEnvironment()) {
+      return await invoke("open_external_url", { url });
+    }
+    window.open(url, "_blank");
+    return `Opened ${url}`;
+  },
 };
 
 

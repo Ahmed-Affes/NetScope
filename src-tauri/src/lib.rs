@@ -22,6 +22,7 @@ pub fn run() {
         commands::stop_capture,
         commands::block_remote_ip,
         commands::unblock_remote_ip,
+        commands::open_external_url,
     ]);
 
     #[cfg(debug_assertions)]

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ShieldCheck, X, ChevronRight, ExternalLink } from "lucide-react";
 import { useNetScopeStore } from "../store/useNetScopeStore";
+import { commands } from "../bindings";
 
 export const NoPrivilegeBanner: React.FC = () => {
   const [dismissed, setDismissed] = useState(false);
@@ -45,17 +46,15 @@ export const NoPrivilegeBanner: React.FC = () => {
             Socket mode works out of the box without any drivers. If you want raw promiscuous packet capture (payload byte deltas), install the official Npcap driver:
           </p>
           <div className="flex items-center gap-2">
-            <a
-              href="https://npcap.com/#download"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-semibold transition-all"
+            <button
+              onClick={() => commands.openExternalUrl("https://npcap.com/#download")}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-semibold transition-all cursor-pointer"
             >
               <span>Download Npcap Installer (Official)</span>
               <ExternalLink className="w-3 h-3" />
-            </a>
+            </button>
             <span className="text-[10px] text-slate-500">
-              Select &quot;WinPcap API-compatible Mode&quot; during installation.
+              Only needed for raw promiscuous frame sniffing. Not required for standard NetScope monitoring.
             </span>
           </div>
         </div>

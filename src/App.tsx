@@ -72,6 +72,19 @@ export const App: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [openCommandPalette]);
 
+  // Intercept all external hyperlinks in the desktop app and open via OS shell
+  useEffect(() => {
+    const handleAnchorClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement)?.closest("a");
+      if (target && target.href && (target.href.startsWith("http://") || target.href.startsWith("https://"))) {
+        e.preventDefault();
+        commands.openExternalUrl(target.href);
+      }
+    };
+    window.addEventListener("click", handleAnchorClick);
+    return () => window.removeEventListener("click", handleAnchorClick);
+  }, []);
+
   return (
     <div className="relative h-screen w-screen flex flex-col bg-[#07090d] text-[#e6edf3] overflow-hidden select-none font-mono">
       {/* Custom Frameless Title Bar */}

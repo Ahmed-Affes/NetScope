@@ -194,3 +194,23 @@ pub fn unblock_remote_ip(ip: String) -> Result<String, String> {
         Ok(format!("Firewall drop rule for {} removed", ip))
     }
 }
+
+#[tauri::command]
+#[specta::specta]
+pub fn open_external_url(url: String) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut cmd = std::process::Command::new("cmd");
+        cmd.args(["/c", "start", "", &url]);
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        cmd.spawn().map_err(|e| format!("Failed to open URL: {}", e))?;
+        Ok(format!("Opened {}", url))
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
+        Ok(format!("Opened {}", url))
+    }
+}
