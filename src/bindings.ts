@@ -2,6 +2,8 @@
 // Uses dynamic import so this file works in both the desktop app (Tauri) and CI (no runtime).
 // Do NOT delete or auto-generate this file.
 
+import type { GraphDelta, GraphNode, GraphLink } from "./types/graph";
+
 type InvokeFn = (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
 let _invoke: InvokeFn | null = null;
 
@@ -43,7 +45,7 @@ export interface SystemMetrics {
 export const commands = {
   async getAppInfo(): Promise<AppInfo> {
     if (isTauri()) return inv<AppInfo>("get_app_info");
-    return { name: "NetScope", version: "0.2.3", mode: "simulator", isElevated: false };
+    return { name: "NetScope", version: "0.2.5", mode: "simulator", isElevated: false };
   },
 
   async getSystemMetrics(): Promise<SystemMetrics> {
@@ -71,13 +73,13 @@ export const commands = {
     return `Mode switched to ${mode}`;
   },
 
-  async getSocketDelta(): Promise<unknown> {
-    if (isTauri()) return inv<unknown>("get_socket_delta");
+  async getSocketDelta(): Promise<GraphDelta> {
+    if (isTauri()) return inv<GraphDelta>("get_socket_delta");
     return { t: Date.now(), addNodes: [], updateNodes: [], removeNodeIds: [], addLinks: [], updateLinks: [], removeLinkIds: [] };
   },
 
-  async getSocketSnapshot(): Promise<{ nodes: unknown[]; links: unknown[] }> {
-    if (isTauri()) return inv<{ nodes: unknown[]; links: unknown[] }>("get_socket_snapshot");
+  async getSocketSnapshot(): Promise<{ nodes: GraphNode[]; links: GraphLink[] }> {
+    if (isTauri()) return inv<{ nodes: GraphNode[]; links: GraphLink[] }>("get_socket_snapshot");
     const now = Date.now();
     return {
       nodes: [{ id: "host:local", kind: "host", label: "This PC", ip: "127.0.0.1", hostname: "localhost", firstSeen: now - 3600000, lastSeen: now, bytesIn: 45_200_000, bytesOut: 98_400_000, rateIn: 0, rateOut: 0 }],

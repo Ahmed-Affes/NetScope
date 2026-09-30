@@ -260,8 +260,8 @@ impl SocketPoller {
             return (self.cached_gateway.clone(), self.cached_lan_devices.clone());
         }
 
-        let mut gateway = None;
-        let mut lan_devices = Vec::new();
+        let mut gateway: Option<String> = None;
+        let mut lan_devices: Vec<String> = Vec::new();
 
         #[cfg(target_os = "windows")]
         {
@@ -276,18 +276,16 @@ impl SocketPoller {
                         let parts: Vec<&str> = line.split_whitespace().collect();
                         if parts.len() >= 3 && parts[2].eq_ignore_ascii_case("dynamic") {
                             let ip_str = parts[0];
-                            if let Ok(ip) = ip_str.parse::<IpAddr>() {
-                                if let IpAddr::V4(ipv4) = ip {
-                                    let octets = ipv4.octets();
-                                    let is_private = octets[0] == 192 && octets[1] == 168
-                                        || octets[0] == 10
-                                        || (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31);
-                                    if is_private {
-                                        if octets[3] == 1 {
-                                            gateway = Some(ip_str.to_string());
-                                        } else if octets[3] != 255 {
-                                            lan_devices.push(ip_str.to_string());
-                                        }
+                            if let Ok(IpAddr::V4(ipv4)) = ip_str.parse::<IpAddr>() {
+                                let octets = ipv4.octets();
+                                let is_private = octets[0] == 192 && octets[1] == 168
+                                    || octets[0] == 10
+                                    || (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31);
+                                if is_private {
+                                    if octets[3] == 1 {
+                                        gateway = Some(ip_str.to_string());
+                                    } else if octets[3] != 255 {
+                                        lan_devices.push(ip_str.to_string());
                                     }
                                 }
                             }
@@ -298,7 +296,7 @@ impl SocketPoller {
         }
 
         if gateway.is_none() && !lan_devices.is_empty() {
-            let first = &lan_devices[0];
+            let first: &str = &lan_devices[0];
             if let Some(idx) = first.rfind('.') {
                 gateway = Some(format!("{}.1", &first[..idx]));
             }
