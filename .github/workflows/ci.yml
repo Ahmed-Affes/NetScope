@@ -7,6 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   frontend:
     name: Frontend Verification
@@ -74,6 +77,8 @@ jobs:
     name: Build Windows Desktop App (.exe)
     if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -121,10 +126,10 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0
-          name: "NetScope Desktop v0.1.0"
+          tag_name: v0.2.0
+          name: "NetScope Desktop v0.2.0"
           body: |
-            ### NetScope v0.1.0 - Windows Desktop App Release
+            ### NetScope Desktop v0.2.0 - 100% Native Windows Desktop Release
             - **100% Real-Time Live PC Topology**: Real Windows socket poller (TCP & UDP) mapped to your actual PC and processes.
             - **Real PC ATK-SIM**: Cyber threat simulations anchored directly to your machine's hostname and running apps.
             - **Full Network Incident Replay**: Scrubbable timeline with playback speeds (0.5x, 1x, 2x, 4x), session recording, and incident traces.

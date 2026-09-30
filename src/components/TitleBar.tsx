@@ -159,7 +159,7 @@ export const TitleBar: React.FC = () => {
           title="Download latest Windows Desktop App installer (.exe)"
         >
           <Download className="w-3 h-3 text-cyan-400" />
-          <span className="font-semibold">v0.1.0</span>
+          <span className="font-semibold">v0.2.0</span>
         </a>
       </div>
 
