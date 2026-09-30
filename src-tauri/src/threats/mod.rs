@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::model::{Alert, GraphDelta, GraphLink, GraphNode, NodeKind, Severity, ThreatInfo};
+use crate::model::{Alert, GraphLink, GraphNode, NodeKind, Severity};
 use crate::sockets::now_ms;
 use serde::{Deserialize, Serialize};
 
