@@ -12,6 +12,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import { CURRENT_VERSION } from "../services/updater";
 
 export const TitleBar: React.FC = () => {
   const {
@@ -160,7 +161,7 @@ export const TitleBar: React.FC = () => {
           title="Check for NetScope Desktop Updates or Preview Update Modal"
         >
           <Sparkles className="w-3 h-3 text-cyan-400 animate-pulse" />
-          <span className="font-semibold">v0.2.3</span>
+          <span className="font-semibold">v{CURRENT_VERSION}</span>
           <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping ml-0.5" />
         </button>
       </div>
