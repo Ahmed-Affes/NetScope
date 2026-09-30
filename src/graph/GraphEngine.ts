@@ -58,6 +58,11 @@ export class GraphEngine {
   private hoveredNodeId: string | null = null;
   private draggedNodeId: string | null = null;
   private isDestroyed = false;
+  private isInitialized = false;
+
+  public get ready(): boolean {
+    return this.isInitialized && !this.isDestroyed;
+  }
 
   constructor(element: HTMLElement, options: GraphEngineOptions = {}) {
     this.containerElement = element;
@@ -72,20 +77,39 @@ export class GraphEngine {
   }
 
   public async init(): Promise<void> {
+    if (this.isDestroyed) return;
     const width = Math.max(this.containerElement.clientWidth || 0, window.innerWidth || 0, 1200);
     const height = Math.max(this.containerElement.clientHeight || 0, window.innerHeight || 0, 800);
 
-    await this.app.init({
-      width,
-      height,
-      backgroundColor: 0x07090d,
-      antialias: true,
-      resolution: Math.min(window.devicePixelRatio || 1, 2),
-      autoDensity: true,
-      preference: "webgl",
-    });
+    try {
+      await this.app.init({
+        width,
+        height,
+        backgroundColor: 0x07090d,
+        antialias: true,
+        resolution: Math.min(window.devicePixelRatio || 1, 2),
+        autoDensity: true,
+        preference: "webgl",
+      });
+    } catch (err) {
+      console.warn("Pixi app init error:", err);
+      return;
+    }
 
-    this.containerElement.appendChild(this.app.canvas as HTMLCanvasElement);
+    if (this.isDestroyed) {
+      try {
+        this.app.destroy(true, { children: true });
+      } catch {
+        // Ignore cleanup error if already destroyed
+      }
+      return;
+    }
+
+    this.isInitialized = true;
+
+    if (this.app.canvas) {
+      this.containerElement.appendChild(this.app.canvas as HTMLCanvasElement);
+    }
 
     // Build scene hierarchy
     this.app.stage.addChild(this.world);
@@ -191,7 +215,7 @@ export class GraphEngine {
     layoutMode = "force",
     nodePositions?: Record<string, { x: number; y: number }>
   ): void {
-    if (this.isDestroyed) return;
+    if (this.isDestroyed || !this.isInitialized) return;
 
     // Update nodes
     const incomingNodeIds = new Set(nodes.map((n) => n.id));
@@ -517,10 +541,18 @@ export class GraphEngine {
     this.isDestroyed = true;
     window.removeEventListener("resize", this.onResize);
     if (this.worker) {
-      this.worker.terminate();
+      try {
+        this.worker.terminate();
+      } catch {}
       this.worker = null;
     }
     this.particles.clear();
-    this.app.destroy(true, { children: true });
+    if (this.isInitialized) {
+      try {
+        this.app.destroy(true, { children: true });
+      } catch (err) {
+        console.warn("Pixi app destroy ignored:", err);
+      }
+    }
   }
 }
