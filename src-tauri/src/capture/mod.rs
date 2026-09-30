@@ -73,10 +73,7 @@ impl FlowAggregator {
                 error: if has_pcap {
                     None
                 } else {
-                    Some(
-                        "Npcap driver not detected in System32. Running in socket table poller mode."
-                            .into(),
-                    )
+                    Some("Npcap driver not detected in System32. Running in socket table poller mode.".into())
                 },
                 interfaces: vec![
                     "Ethernet (Realtek PCIe GbE)".into(),

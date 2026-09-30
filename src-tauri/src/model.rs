@@ -174,4 +174,3 @@ pub struct GraphSnapshot {
     pub nodes: Vec<GraphNode>,
     pub links: Vec<GraphLink>,
 }
-

@@ -117,10 +117,7 @@ impl ThreatEngine {
                 rule: "Cryptocurrency Mining (Stratum Protocol)".into(),
                 node_id: Some(link.target.clone()),
                 link_id: Some(link.id.clone()),
-                description: format!(
-                    "Active connection on known crypto mining port {}",
-                    link.port
-                ),
+                description: format!("Active connection on known crypto mining port {}", link.port),
                 acked: false,
             });
         }

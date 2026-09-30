@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::model::{Alert, GraphDelta, SystemMetrics};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, specta::Type, Clone, Debug)]
 #[serde(rename_all = "camelCase")]

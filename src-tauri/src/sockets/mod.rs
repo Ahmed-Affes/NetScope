@@ -239,21 +239,23 @@ impl SocketPoller {
 
             // Link host -> process
             let host_proc_link_id = format!("link:{}->{}", host_id, proc_id);
-            current_links.entry(host_proc_link_id.clone()).or_insert_with(|| GraphLink {
-                id: host_proc_link_id,
-                source: host_id.clone(),
-                target: proc_id.clone(),
-                proto: entry.proto.clone(),
-                port: entry.local_port,
-                service: None,
-                bytes_in: 1024,
-                bytes_out: 1024,
-                rate: 200.0,
-                packets: 2,
-                state: Some(entry.state.clone()),
-                first_seen: now,
-                last_seen: now,
-            });
+            current_links
+                .entry(host_proc_link_id.clone())
+                .or_insert_with(|| GraphLink {
+                    id: host_proc_link_id,
+                    source: host_id.clone(),
+                    target: proc_id.clone(),
+                    proto: entry.proto.clone(),
+                    port: entry.local_port,
+                    service: None,
+                    bytes_in: 1024,
+                    bytes_out: 1024,
+                    rate: 200.0,
+                    packets: 2,
+                    state: Some(entry.state.clone()),
+                    first_seen: now,
+                    last_seen: now,
+                });
 
             // Remote endpoint node if remote IP is not empty or 0.0.0.0
             if !entry.remote_ip.is_empty()
@@ -285,10 +287,7 @@ impl SocketPoller {
                 });
 
                 // Link proc -> remote endpoint
-                let proc_remote_link_id = format!(
-                    "link:{}->{}:{}",
-                    proc_id, entry.remote_ip, entry.remote_port
-                );
+                let proc_remote_link_id = format!("link:{}->{}:{}", proc_id, entry.remote_ip, entry.remote_port);
                 current_links
                     .entry(proc_remote_link_id.clone())
                     .or_insert_with(|| GraphLink {
