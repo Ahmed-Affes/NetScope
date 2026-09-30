@@ -8,7 +8,7 @@ export interface UpdateInfo {
   hasUpdate: boolean;
 }
 
-export const CURRENT_VERSION = "0.2.1";
+export const CURRENT_VERSION = "0.2.2";
 const REPO = "Ahmed-Affes/NetScope";
 
 /**
