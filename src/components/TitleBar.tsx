@@ -41,24 +41,24 @@ export const TitleBar: React.FC = () => {
   const handleMinimize = async () => {
     try {
       await getCurrentWindow().minimize();
-    } catch {
-      // Browser fallback
+    } catch (err) {
+      console.warn("Minimize not available:", err);
     }
   };
 
   const handleMaximize = async () => {
     try {
       await getCurrentWindow().toggleMaximize();
-    } catch {
-      // Browser fallback
+    } catch (err) {
+      console.warn("Maximize not available:", err);
     }
   };
 
   const handleClose = async () => {
     try {
       await getCurrentWindow().close();
-    } catch {
-      // Browser fallback
+    } catch (err) {
+      console.warn("Close not available:", err);
     }
   };
 
@@ -71,6 +71,7 @@ export const TitleBar: React.FC = () => {
   return (
     <div
       data-tauri-drag-region
+      onDoubleClick={handleMaximize}
       className="h-10 w-full bg-[#0a0e17]/90 border-b border-white/[0.06] flex items-center justify-between px-3 select-none z-50 backdrop-blur-md relative"
     >
       {/* Left: Branding & Mode */}
