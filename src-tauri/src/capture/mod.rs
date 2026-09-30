@@ -35,18 +35,10 @@ pub struct FlowRecord {
     pub process_name: Option<String>,
 }
 
+#[derive(Default)]
 pub struct FlowAggregator {
     flows: HashMap<FlowKey, FlowRecord>,
     is_active: bool,
-}
-
-impl Default for FlowAggregator {
-    fn default() -> Self {
-        Self {
-            flows: HashMap::new(),
-            is_active: false,
-        }
-    }
 }
 
 impl FlowAggregator {
@@ -96,6 +88,7 @@ impl FlowAggregator {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn record_packet(
         &mut self,
         src_ip: String,

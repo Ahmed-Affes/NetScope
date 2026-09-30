@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::model::{GraphDelta, GraphLink, GraphNode, LinkUpdate, NodeKind, NodeUpdate};
 use std::collections::HashMap;
 use std::net::IpAddr;

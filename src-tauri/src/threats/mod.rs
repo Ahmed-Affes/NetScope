@@ -14,17 +14,10 @@ pub struct ThreatRuleResult {
     pub link_id: Option<String>,
 }
 
+#[derive(Default)]
 pub struct ThreatEngine {
     // History of connection intervals per endpoint for beacon detection
     connection_intervals: std::collections::HashMap<String, Vec<u64>>,
-}
-
-impl Default for ThreatEngine {
-    fn default() -> Self {
-        Self {
-            connection_intervals: std::collections::HashMap::new(),
-        }
-    }
 }
 
 impl ThreatEngine {
