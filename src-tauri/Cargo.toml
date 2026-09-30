@@ -13,7 +13,7 @@ crate-type = ["rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["devtools"] }
 specta = { version = "=2.0.0-rc.20", features = ["derive"] }
 tauri-specta = { version = "=2.0.0-rc.20", features = ["javascript", "typescript"] }
 specta-typescript = "=0.0.7"

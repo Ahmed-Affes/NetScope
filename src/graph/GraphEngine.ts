@@ -81,6 +81,7 @@ export class GraphEngine {
       antialias: true,
       resolution: Math.min(window.devicePixelRatio || 1, 2),
       autoDensity: true,
+      preference: "webgl",
     });
 
     this.containerElement.appendChild(this.app.canvas as HTMLCanvasElement);
