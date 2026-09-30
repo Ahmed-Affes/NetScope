@@ -91,6 +91,7 @@ export const TitleBar: React.FC = () => {
         <div className="flex items-center bg-[#0e121a] rounded-md p-0.5 border border-white/[0.07] text-[10px]">
           <button
             onClick={() => setTrafficMode("live")}
+            title="Live PC Mode: Reads your real Windows socket table, ARP cache & running processes. Requires elevated privileges for full data."
             className={`px-2.5 py-0.5 rounded transition-colors flex items-center gap-1.5 ${
               trafficMode === "live"
                 ? "bg-emerald-500/20 text-emerald-300 font-semibold shadow-[0_0_8px_rgba(52,211,153,0.3)] border border-emerald-500/30"
@@ -102,6 +103,7 @@ export const TitleBar: React.FC = () => {
           </button>
           <button
             onClick={() => setTrafficMode("replay")}
+            title="Replay Mode: Play back a previously recorded session from the SESSIONS library."
             className={`px-2 py-0.5 rounded transition-colors ${
               trafficMode === "replay"
                 ? "bg-purple-500/20 text-purple-300 font-semibold shadow-[0_0_8px_rgba(168,85,247,0.3)] border border-purple-500/30"
@@ -112,6 +114,7 @@ export const TitleBar: React.FC = () => {
           </button>
           <button
             onClick={() => setTrafficMode("simulator")}
+            title="Simulator Mode: Rich demo with a full cyber topology — gateway, LAN devices, threats, internet endpoints and live traffic pulses. Great for exploring the UI."
             className={`px-2 py-0.5 rounded transition-colors ${
               trafficMode === "simulator"
                 ? "bg-cyan-500/20 text-cyan-300 font-semibold shadow-[0_0_8px_rgba(34,211,238,0.3)] border border-cyan-500/30"
@@ -157,7 +160,7 @@ export const TitleBar: React.FC = () => {
           title="Check for NetScope Desktop Updates or Preview Update Modal"
         >
           <Sparkles className="w-3 h-3 text-cyan-400 animate-pulse" />
-          <span className="font-semibold">v0.2.2</span>
+          <span className="font-semibold">v0.2.3</span>
           <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping ml-0.5" />
         </button>
       </div>
