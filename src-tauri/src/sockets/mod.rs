@@ -260,8 +260,30 @@ impl SocketPoller {
             return (self.cached_gateway.clone(), self.cached_lan_devices.clone());
         }
 
+        #[allow(unused_mut)]
         let mut gateway: Option<String> = None;
+        #[allow(unused_mut)]
         let mut lan_devices: Vec<String> = Vec::new();
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            if let Ok(content) = std::fs::read_to_string("/proc/net/arp") {
+                for line in content.lines().skip(1) {
+                    let parts: Vec<&str> = line.split_whitespace().collect();
+                    if parts.len() >= 4 && parts[3] != "00:00:00:00:00:00" {
+                        let ip_str = parts[0];
+                        if let Ok(IpAddr::V4(ipv4)) = ip_str.parse::<IpAddr>() {
+                            let octets = ipv4.octets();
+                            if octets[3] == 1 {
+                                gateway = Some(ip_str.to_string());
+                            } else if octets[3] != 255 {
+                                lan_devices.push(ip_str.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         #[cfg(target_os = "windows")]
         {
