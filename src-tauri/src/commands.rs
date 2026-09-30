@@ -11,7 +11,7 @@ pub fn get_app_info() -> AppInfo {
     AppInfo {
         name: "NetScope".into(),
         version: env!("CARGO_PKG_VERSION").into(),
-        mode: "simulator".into(),
+        mode: "live".into(),
         is_elevated: false,
     }
 }

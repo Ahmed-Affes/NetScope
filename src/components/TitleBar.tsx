@@ -90,34 +90,35 @@ export const TitleBar: React.FC = () => {
         {/* Mode Selector Badges */}
         <div className="flex items-center bg-[#0e121a] rounded-md p-0.5 border border-white/[0.07] text-[10px]">
           <button
-            onClick={() => setTrafficMode("simulator")}
-            className={`px-2 py-0.5 rounded transition-colors ${
-              trafficMode === "simulator"
-                ? "bg-cyan-500/20 text-cyan-400 font-semibold shadow-[0_0_8px_rgba(34,211,238,0.3)]"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            SIM
-          </button>
-          <button
             onClick={() => setTrafficMode("live")}
-            className={`px-2 py-0.5 rounded transition-colors ${
+            className={`px-2.5 py-0.5 rounded transition-colors flex items-center gap-1.5 ${
               trafficMode === "live"
-                ? "bg-emerald-500/20 text-emerald-400 font-semibold shadow-[0_0_8px_rgba(52,211,153,0.3)]"
+                ? "bg-emerald-500/20 text-emerald-300 font-semibold shadow-[0_0_8px_rgba(52,211,153,0.3)] border border-emerald-500/30"
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            LIVE
+            <span className={`w-1.5 h-1.5 rounded-full ${trafficMode === "live" ? "bg-emerald-400 animate-pulse" : "bg-slate-500"}`} />
+            <span>LIVE (PC)</span>
           </button>
           <button
             onClick={() => setTrafficMode("replay")}
             className={`px-2 py-0.5 rounded transition-colors ${
               trafficMode === "replay"
-                ? "bg-purple-500/20 text-purple-400 font-semibold shadow-[0_0_8px_rgba(168,85,247,0.3)]"
+                ? "bg-purple-500/20 text-purple-300 font-semibold shadow-[0_0_8px_rgba(168,85,247,0.3)] border border-purple-500/30"
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
             REPLAY
+          </button>
+          <button
+            onClick={() => setTrafficMode("simulator")}
+            className={`px-2 py-0.5 rounded transition-colors ${
+              trafficMode === "simulator"
+                ? "bg-cyan-500/20 text-cyan-300 font-semibold shadow-[0_0_8px_rgba(34,211,238,0.3)] border border-cyan-500/30"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            SIM
           </button>
         </div>
 
@@ -129,7 +130,7 @@ export const TitleBar: React.FC = () => {
               ? "bg-red-500/20 border-red-500/40 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)]"
               : "bg-white/[0.03] border-white/[0.06] text-slate-400 hover:text-slate-200"
           }`}
-          title={isRecording ? "Stop Recording (Supabase)" : "Start Recording"}
+          title={isRecording ? "Stop Recording Session" : "Record Live PC Traffic"}
         >
           <span
             className={`w-2 h-2 rounded-full ${
@@ -149,16 +150,16 @@ export const TitleBar: React.FC = () => {
           <span>REMOTE</span>
         </button>
 
-        {/* Desktop App Download Button */}
+        {/* Desktop Releases Link & Update Badge */}
         <a
           href="https://github.com/Ahmed-Affes/NetScope/releases"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-900/40 hover:border-cyan-400 transition-all shadow-[0_0_8px_rgba(34,211,238,0.2)]"
-          title="Download Windows Desktop App (.exe / .msi installer)"
+          title="Download latest Windows Desktop App installer (.exe)"
         >
           <Download className="w-3 h-3 text-cyan-400" />
-          <span className="font-semibold">DESKTOP APP</span>
+          <span className="font-semibold">v0.1.0</span>
         </a>
       </div>
 

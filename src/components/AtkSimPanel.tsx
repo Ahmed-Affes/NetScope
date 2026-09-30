@@ -90,7 +90,19 @@ export const AtkSimPanel: React.FC = () => {
     }
 
     const store = useNetScopeStore.getState();
-    const hostNodeId = Object.keys(store.nodes)[0] || "host:dark-spark";
+    const hostNode =
+      Object.values(store.nodes).find((n) => n.kind === "host") ||
+      Object.values(store.nodes)[0];
+    const hostNodeId = hostNode ? hostNode.id : "host:local";
+    const hostName = hostNode?.hostname || hostNode?.label || "Local PC";
+    const hostIp = hostNode?.ip || "127.0.0.1";
+
+    // Detect any real active process on the machine
+    const activeProc = Object.values(store.nodes).find(
+      (n) => n.kind === "process" && n.id !== hostNodeId
+    );
+    const procTargetId = activeProc ? activeProc.id : hostNodeId;
+    const procTargetLabel = activeProc ? activeProc.label : hostName;
 
     if (s.id === "ssh-brute") {
       store.applyDelta({
@@ -110,7 +122,7 @@ export const AtkSimPanel: React.FC = () => {
             rateOut: 2_000,
             threat: {
               severity: "high",
-              reasons: ["SSH dictionary brute-force attack (50 req/sec)"],
+              reasons: [`SSH dictionary brute-force attacking ${hostName} (${hostIp})`],
             },
           },
         ],
@@ -142,7 +154,7 @@ export const AtkSimPanel: React.FC = () => {
             severity: "high",
             rule: "SSH Brute Force",
             nodeId: "threat:ssh-brute",
-            description: "50 SSH login failures per second originating from 185.220.101.5",
+            description: `50 SSH login failures per second probing port 22 on ${hostName} (${hostIp})`,
             acked: false,
           },
         ],
@@ -165,7 +177,7 @@ export const AtkSimPanel: React.FC = () => {
             rateOut: 8_500_000,
             threat: {
               severity: "high",
-              reasons: ["Massive outbound data exfiltration spike"],
+              reasons: [`Unauthorized data exfiltration from ${procTargetLabel} on ${hostName}`],
             },
           },
         ],
@@ -173,8 +185,8 @@ export const AtkSimPanel: React.FC = () => {
         removeNodeIds: [],
         addLinks: [
           {
-            id: `link:${hostNodeId}->threat:s3-exfil`,
-            source: hostNodeId,
+            id: `link:${procTargetId}->threat:s3-exfil`,
+            source: procTargetId,
             target: "threat:s3-exfil",
             proto: "tcp",
             port: 443,
@@ -197,7 +209,7 @@ export const AtkSimPanel: React.FC = () => {
             severity: "high",
             rule: "Data Exfiltration Spike",
             nodeId: "threat:s3-exfil",
-            description: "8.5 MB/s continuous outbound data exfiltration to s3-shadow-backup.aws",
+            description: `8.5 MB/s data exfiltration from process ${procTargetLabel} on ${hostName} to external host 54.231.1.200`,
             acked: false,
           },
         ],
@@ -221,7 +233,7 @@ export const AtkSimPanel: React.FC = () => {
             threat: {
               severity: "high",
               reasons: [
-                "Cobalt Strike Malleable C2 Beacon",
+                `Cobalt Strike C2 Beacon attached to ${procTargetLabel} on ${hostName}`,
                 "Periodic jittered heartbeat on port 8443",
               ],
             },
@@ -231,8 +243,8 @@ export const AtkSimPanel: React.FC = () => {
         removeNodeIds: [],
         addLinks: [
           {
-            id: `link:${hostNodeId}->threat:c2-cobalt`,
-            source: hostNodeId,
+            id: `link:${procTargetId}->threat:c2-cobalt`,
+            source: procTargetId,
             target: "threat:c2-cobalt",
             proto: "tcp",
             port: 8443,
@@ -255,7 +267,7 @@ export const AtkSimPanel: React.FC = () => {
             severity: "high",
             rule: "Malware C2 Callback",
             nodeId: "threat:c2-cobalt",
-            description: "Periodic beaconing detected to known C2 server c2-darkcomet-beacon.evil",
+            description: `Suspicious C2 beacon originating from ${procTargetLabel} on ${hostName} to 194.26.29.112:8443`,
             acked: false,
           },
         ],
@@ -277,7 +289,7 @@ export const AtkSimPanel: React.FC = () => {
             rateOut: 24_000,
             threat: {
               severity: "med",
-              reasons: ["Nmap SYN stealth sweep across 24 local ports"],
+              reasons: [`Nmap SYN stealth sweep across local ports on ${hostName}`],
             },
           },
         ],
@@ -309,7 +321,7 @@ export const AtkSimPanel: React.FC = () => {
             severity: "med",
             rule: "Port Scan Sweep",
             nodeId: "threat:scanner",
-            description: "Port probe sweep detected against 24 internal ports from 192.168.50.88",
+            description: `Port probe sweep detected targeting 24 open ports on ${hostName} (${hostIp}) from 192.168.50.88`,
             acked: false,
           },
         ],
@@ -332,7 +344,7 @@ export const AtkSimPanel: React.FC = () => {
             rateOut: 120_000,
             threat: {
               severity: s.badge === "CRITICAL" ? "high" : "med",
-              reasons: [s.desc],
+              reasons: [`${s.desc} directed at ${hostName}`],
             },
           },
         ],
@@ -362,7 +374,7 @@ export const AtkSimPanel: React.FC = () => {
             severity: s.badge === "CRITICAL" ? "high" : "med",
             rule: s.name,
             nodeId: `threat:${s.id}`,
-            description: s.desc,
+            description: `${s.desc} active against ${hostName} (${hostIp})`,
             acked: false,
           },
         ],
@@ -382,7 +394,7 @@ export const AtkSimPanel: React.FC = () => {
 
 
   return (
-    <div className="w-68 cyber-panel transition-all duration-200 shadow-2xl pointer-events-auto flex flex-col max-h-[48vh] overflow-hidden shrink-0">
+    <div className="w-68 cyber-panel transition-all duration-200 shadow-2xl pointer-events-auto flex flex-col max-h-[38vh] overflow-hidden shrink-0">
       {/* Header */}
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/[0.06]">
         <div className="flex items-center gap-2">
@@ -390,7 +402,7 @@ export const AtkSimPanel: React.FC = () => {
             ATK-SIM
           </span>
           <span className="px-1.5 py-0.2 rounded text-[9px] bg-red-500/20 text-red-300 border border-red-500/30">
-            SIMULATED
+            TARGET: REAL PC
           </span>
         </div>
         <button
@@ -402,7 +414,7 @@ export const AtkSimPanel: React.FC = () => {
       </div>
 
       {/* Scenarios List */}
-      <div className="p-2 space-y-1.5 max-h-[380px] overflow-y-auto">
+      <div className="p-2 space-y-1.5 flex-1 overflow-y-auto custom-scrollbar">
         {scenarios.map((s) => {
           const isActive = activeScenario === s.id;
           return (

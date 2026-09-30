@@ -39,7 +39,9 @@ impl Default for SocketPoller {
 
 impl SocketPoller {
     pub fn new() -> Self {
-        Self::default()
+        let mut poller = Self::default();
+        let _ = poller.poll_and_compute_delta();
+        poller
     }
 
     pub fn refresh_processes(&mut self) {
@@ -101,11 +103,12 @@ impl SocketPoller {
 
         #[cfg(target_os = "windows")]
         {
+            // 1. Scan TCP sockets
             if let Ok(output) = Command::new("netstat").args(["-ano", "-p", "tcp"]).output() {
                 if let Ok(text) = String::from_utf8(output.stdout) {
                     for line in text.lines() {
                         let parts: Vec<&str> = line.split_whitespace().collect();
-                        if parts.len() >= 5 && (parts[0] == "TCP" || parts[0] == "tcp") {
+                        if parts.len() >= 5 && parts[0].eq_ignore_ascii_case("TCP") {
                             let local_addr = parts[1];
                             let foreign_addr = parts[2];
                             let state = parts[3].to_string();
@@ -127,6 +130,45 @@ impl SocketPoller {
                                 remote_ip: r_ip,
                                 remote_port: r_port,
                                 state,
+                                pid: pid_val,
+                                process_name: p_name,
+                                exe_path: exe,
+                            });
+                        }
+                    }
+                }
+            }
+
+            // 2. Scan UDP sockets (background apps, voice, streaming, local services)
+            if let Ok(output) = Command::new("netstat").args(["-ano", "-p", "udp"]).output() {
+                if let Ok(text) = String::from_utf8(output.stdout) {
+                    for line in text.lines() {
+                        let parts: Vec<&str> = line.split_whitespace().collect();
+                        if parts.len() >= 4 && parts[0].eq_ignore_ascii_case("UDP") {
+                            let local_addr = parts[1];
+                            let foreign_addr = parts[2];
+                            let pid_val = if parts.len() >= 5 {
+                                parts[4].parse::<u32>().ok().or_else(|| parts[3].parse::<u32>().ok())
+                            } else {
+                                parts[3].parse::<u32>().ok()
+                            };
+
+                            let (l_ip, l_port) = parse_endpoint(local_addr);
+                            let (r_ip, r_port) = parse_endpoint(foreign_addr);
+
+                            let (p_name, exe) = if let Some(pid) = pid_val {
+                                self.get_process_info(pid)
+                            } else {
+                                (None, None)
+                            };
+
+                            entries.push(SocketEntry {
+                                proto: "udp".into(),
+                                local_ip: l_ip,
+                                local_port: l_port,
+                                remote_ip: r_ip,
+                                remote_port: r_port,
+                                state: "LISTENING".into(),
                                 pid: pid_val,
                                 process_name: p_name,
                                 exe_path: exe,
@@ -177,18 +219,19 @@ impl SocketPoller {
         let mut current_nodes: HashMap<String, GraphNode> = HashMap::new();
         let mut current_links: HashMap<String, GraphLink> = HashMap::new();
 
-        // 1. Center Host node
+        // 1. Center Host node - represents the user's actual PC
         let host_id = "host:local".to_string();
+        let pc_name = System::host_name().unwrap_or_else(|| "My PC".into());
         current_nodes.insert(
             host_id.clone(),
             GraphNode {
                 id: host_id.clone(),
                 kind: NodeKind::Host,
-                label: "Local Workstation".into(),
+                label: format!("PC: {}", pc_name),
                 pid: None,
                 exe_path: None,
                 ip: Some("127.0.0.1".into()),
-                hostname: Some("localhost".into()),
+                hostname: Some(pc_name.clone()),
                 country: None,
                 asn: None,
                 org: None,

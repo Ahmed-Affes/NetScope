@@ -12,6 +12,7 @@ import { AlertFeed } from "./components/AlertFeed";
 import { Timeline } from "./components/Timeline";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { RemoteViewerModal } from "./components/RemoteViewerModal";
+import { UpdateNotification } from "./components/UpdateNotification";
 import { GraphCanvas } from "./components/GraphCanvas";
 
 import { useNetScopeStore } from "./store/useNetScopeStore";
@@ -93,13 +94,13 @@ export const App: React.FC = () => {
         <FilterBar />
 
         {/* Left Cyber Dock (Metrics & ATK-SIM cleanly stacked, never overlapping) */}
-        <div className="absolute top-14 left-4 z-40 flex flex-col gap-2.5 max-h-[calc(100vh-80px)] pointer-events-none">
+        <div className="absolute top-14 left-4 z-40 flex flex-col gap-2.5 max-h-[calc(100vh-80px)] overflow-y-auto custom-scrollbar pointer-events-none pr-1">
           <MetricsPanel />
           <AtkSimPanel />
         </div>
 
         {/* Right Cyber Dock (Inspector & Security Alerts cleanly stacked, never overlapping) */}
-        <div className="absolute top-14 right-4 z-40 flex flex-col gap-2.5 max-h-[calc(100vh-80px)] pointer-events-none">
+        <div className="absolute top-14 right-4 z-40 flex flex-col gap-2.5 max-h-[calc(100vh-270px)] overflow-y-auto custom-scrollbar pointer-events-none pr-1">
           <InspectorPanel />
           <AlertFeed />
         </div>
@@ -109,6 +110,7 @@ export const App: React.FC = () => {
         <LegendPanel />
 
         {/* Modals & Dialogs */}
+        <UpdateNotification />
         <CommandPalette />
         <Timeline />
         <OnboardingModal />

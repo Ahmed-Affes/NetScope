@@ -44,7 +44,7 @@ export const LegendPanel: React.FC = () => {
   }
 
   return (
-    <div className="absolute bottom-4 right-4 z-40 w-48 cyber-panel text-xs transition-all duration-200 shadow-2xl max-h-[70vh] overflow-y-auto">
+    <div className="absolute bottom-4 right-4 z-30 w-48 cyber-panel text-xs transition-all duration-200 shadow-2xl max-h-[220px] overflow-y-auto custom-scrollbar pointer-events-auto">
       {/* Header */}
       <div
         onClick={toggleLegend}

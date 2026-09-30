@@ -80,7 +80,7 @@ export const AlertFeed: React.FC = () => {
 
       {/* Alert Cards */}
       {isExpanded && (
-        <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto pr-1">
+        <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
           {activeAlerts.slice(0, 5).map((alert) => {
             const isHigh = alert.severity === "high";
             const borderCol = isHigh

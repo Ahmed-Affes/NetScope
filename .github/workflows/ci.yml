@@ -116,3 +116,25 @@ jobs:
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/*.exe
           if-no-files-found: warn
+
+      - name: Publish GitHub Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.0
+          name: "NetScope Desktop v0.1.0"
+          body: |
+            ### NetScope v0.1.0 - Windows Desktop App Release
+            - **100% Real-Time Live PC Topology**: Real Windows socket poller (TCP & UDP) mapped to your actual PC and processes.
+            - **Real PC ATK-SIM**: Cyber threat simulations anchored directly to your machine's hostname and running apps.
+            - **Full Network Incident Replay**: Scrubbable timeline with playback speeds (0.5x, 1x, 2x, 4x), session recording, and incident traces.
+            - **Frameless Window Management**: Tauri v2 custom titlebar with minimize, maximize, and close controls.
+            - **HUD Layout & Collision Optimization**: Zero panel overlap between metrics, ATK-SIM, alerts, and legend.
+            - **In-App Update System**: Live GitHub release notifications and direct installer download.
+          draft: false
+          prerelease: false
+          files: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

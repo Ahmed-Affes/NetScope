@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { GraphEngine } from "../graph/GraphEngine";
 import { SimulatorSource } from "../sources/simulator";
 import { LiveSource } from "../sources/live";
-import { ReplaySource } from "../sources/replay";
+import { replayController } from "../sources/replay";
 import { TrafficSource } from "../types/graph";
 import { useNetScopeStore } from "../store/useNetScopeStore";
 import { recorder } from "../services/recorder";
@@ -30,7 +30,7 @@ export const GraphCanvas: React.FC = () => {
     if (trafficMode === "live") {
       source = new LiveSource();
     } else if (trafficMode === "replay") {
-      source = new ReplaySource("latest");
+      source = replayController;
     } else {
       source = new SimulatorSource();
     }

@@ -82,6 +82,15 @@ export class LiveSource implements TrafficSource {
   }
 
   public async snapshot(): Promise<{ nodes: GraphNode[]; links: GraphLink[] }> {
+    if (this.nodesMap.size === 0) {
+      try {
+        const snap = await commands.getSocketSnapshot();
+        for (const n of snap.nodes) this.nodesMap.set(n.id, n);
+        for (const l of snap.links) this.linksMap.set(l.id, l);
+      } catch (e) {
+        console.warn("Failed to load initial socket snapshot:", e);
+      }
+    }
     return {
       nodes: Array.from(this.nodesMap.values()),
       links: Array.from(this.linksMap.values()),

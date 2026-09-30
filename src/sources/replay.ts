@@ -1,4 +1,5 @@
 import { cloudStorage, RecordedChunk } from "../lib/supabase";
+import { useNetScopeStore } from "../store/useNetScopeStore";
 import { GraphDelta, GraphLink, GraphNode, TrafficSource } from "../types/graph";
 
 export class ReplaySource implements TrafficSource {
@@ -15,8 +16,23 @@ export class ReplaySource implements TrafficSource {
   private startTime: number = 0;
   private endTime: number = 0;
 
-  constructor(sessionId: string) {
+  constructor(sessionId: string = "latest") {
     this.sessionId = sessionId;
+  }
+
+  public getSessionId(): string {
+    return this.sessionId;
+  }
+
+  public async setSession(sessionId: string): Promise<void> {
+    this.sessionId = sessionId;
+    this.stop();
+    this.currentIndex = 0;
+    this.allDeltas = [];
+    this.nodesMap.clear();
+    this.linksMap.clear();
+    await this.load();
+    this.seekToIndex(0);
   }
 
   public async load(): Promise<void> {
@@ -27,11 +43,14 @@ export class ReplaySource implements TrafficSource {
     if (this.allDeltas.length > 0) {
       this.startTime = this.allDeltas[0].t;
       this.endTime = this.allDeltas[this.allDeltas.length - 1].t;
+      // Pre-seed initial state
+      this.seekToIndex(0);
     }
   }
 
   public setSpeed(speed: number) {
     this.speed = speed;
+    useNetScopeStore.getState().setReplaySpeed(speed);
     if (this.timerId !== null) {
       this.stop();
       this.start();
@@ -39,21 +58,23 @@ export class ReplaySource implements TrafficSource {
   }
 
   public getProgress(): number {
-    if (this.allDeltas.length === 0) return 0;
-    return this.currentIndex / this.allDeltas.length;
+    if (this.allDeltas.length <= 1) return 0;
+    return this.currentIndex / (this.allDeltas.length - 1);
   }
 
   public getTimeRange(): { start: number; end: number } {
     return { start: this.startTime, end: this.endTime };
   }
 
-
   public seek(progress: number) {
+    if (this.allDeltas.length === 0) return;
     const targetIdx = Math.floor(progress * (this.allDeltas.length - 1));
     this.seekToIndex(targetIdx);
+    useNetScopeStore.getState().setReplayProgress(progress);
   }
 
   public seekToIndex(targetIdx: number) {
+    if (this.allDeltas.length === 0) return;
     const clamped = Math.max(0, Math.min(this.allDeltas.length - 1, targetIdx));
     this.nodesMap.clear();
     this.linksMap.clear();
@@ -100,6 +121,7 @@ export class ReplaySource implements TrafficSource {
       addLinks: Array.from(this.linksMap.values()),
       updateLinks: [],
       removeLinkIds: [],
+      alerts: this.allDeltas[clamped]?.alerts,
     };
 
     for (const cb of this.listeners) {
@@ -113,7 +135,14 @@ export class ReplaySource implements TrafficSource {
     }
     if (this.timerId !== null) return;
 
-    const intervalMs = Math.max(16, Math.floor(100 / this.speed));
+    // If at end, loop back to start
+    if (this.currentIndex >= this.allDeltas.length - 1) {
+      this.seekToIndex(0);
+    }
+
+    useNetScopeStore.getState().setReplayPlaying(true);
+
+    const intervalMs = Math.max(30, Math.floor(1000 / this.speed));
     this.timerId = window.setInterval(() => {
       if (this.currentIndex >= this.allDeltas.length) {
         this.stop();
@@ -124,6 +153,9 @@ export class ReplaySource implements TrafficSource {
       for (const cb of this.listeners) {
         cb(delta);
       }
+
+      const prog = this.getProgress();
+      useNetScopeStore.getState().setReplayProgress(prog);
     }, intervalMs);
   }
 
@@ -132,9 +164,28 @@ export class ReplaySource implements TrafficSource {
       clearInterval(this.timerId);
       this.timerId = null;
     }
+    useNetScopeStore.getState().setReplayPlaying(false);
+  }
+
+  public togglePlay(): void {
+    if (this.timerId !== null) {
+      this.stop();
+    } else {
+      this.start();
+    }
+  }
+
+  public isPlaying(): boolean {
+    return this.timerId !== null;
   }
 
   public async snapshot(): Promise<{ nodes: GraphNode[]; links: GraphLink[] }> {
+    if (this.allDeltas.length === 0) {
+      await this.load();
+    }
+    if (this.nodesMap.size === 0 && this.allDeltas.length > 0) {
+      this.seekToIndex(0);
+    }
     return {
       nodes: Array.from(this.nodesMap.values()),
       links: Array.from(this.linksMap.values()),
@@ -146,3 +197,6 @@ export class ReplaySource implements TrafficSource {
     return () => this.listeners.delete(cb);
   }
 }
+
+// Shared singleton replay controller
+export const replayController = new ReplaySource("latest");
