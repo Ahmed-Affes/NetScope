@@ -23,6 +23,11 @@ export const GraphCanvas: React.FC = () => {
     const engine = new GraphEngine(containerRef.current, {
       onSelectNode: (id) => selectNode(id),
       onSelectLink: (id) => selectLink(id),
+      onNodeDrag: (nodeId, x, y) => {
+        if (useNetScopeStore.getState().isRecording) {
+          recorder.recordNodeMove(nodeId, x, y);
+        }
+      },
     });
     engineRef.current = engine;
 
@@ -91,7 +96,12 @@ export const GraphCanvas: React.FC = () => {
           (l) => visibleNodeIds.has(l.source) && visibleNodeIds.has(l.target)
         );
 
-        engine.updateGraph(filteredNodes, filteredLinks, currentStore.layoutMode);
+        engine.updateGraph(
+          filteredNodes,
+          filteredLinks,
+          currentStore.layoutMode,
+          delta.nodePositions
+        );
 
         // Run threat engine once per 2 seconds to avoid UI alert flooding
         const now = Date.now();
@@ -111,9 +121,9 @@ export const GraphCanvas: React.FC = () => {
     };
   }, [applyDelta, selectNode, selectLink, trafficMode]);
 
-  const { activeFilter, searchQuery } = useNetScopeStore();
+  const { activeFilter, searchQuery, graphVersion } = useNetScopeStore();
 
-  // Handle smooth layout mode and filter transitions reactively
+  // Handle smooth layout mode, filter, and store delta transitions reactively
   useEffect(() => {
     if (engineRef.current) {
       const currentStore = useNetScopeStore.getState();
@@ -145,7 +155,7 @@ export const GraphCanvas: React.FC = () => {
 
       engineRef.current.updateGraph(filteredNodes, filteredLinks, layoutMode);
     }
-  }, [layoutMode, activeFilter, searchQuery]);
+  }, [layoutMode, activeFilter, searchQuery, graphVersion]);
 
   return (
     <div

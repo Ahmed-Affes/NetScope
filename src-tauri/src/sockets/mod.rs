@@ -23,6 +23,9 @@ pub struct SocketPoller {
     system: System,
     proc_cache: HashMap<u32, (Option<String>, Option<String>)>,
     last_proc_refresh: u64,
+    last_arp_refresh: u64,
+    cached_gateway: Option<String>,
+    cached_lan_devices: Vec<String>,
     previous_nodes: HashMap<String, GraphNode>,
     previous_links: HashMap<String, GraphLink>,
 }
@@ -35,6 +38,9 @@ impl Default for SocketPoller {
             system,
             proc_cache: HashMap::new(),
             last_proc_refresh: now_ms(),
+            last_arp_refresh: 0,
+            cached_gateway: None,
+            cached_lan_devices: Vec::new(),
             previous_nodes: HashMap::new(),
             previous_links: HashMap::new(),
         }
@@ -246,6 +252,65 @@ impl SocketPoller {
         entries
     }
 
+    pub fn scan_arp_neighbors(&mut self) -> (Option<String>, Vec<String>) {
+        let now = now_ms();
+        if now.saturating_sub(self.last_arp_refresh) < 20_000
+            && (self.cached_gateway.is_some() || !self.cached_lan_devices.is_empty())
+        {
+            return (self.cached_gateway.clone(), self.cached_lan_devices.clone());
+        }
+
+        let mut gateway = None;
+        let mut lan_devices = Vec::new();
+
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            let mut arp_cmd = Command::new("arp");
+            arp_cmd.args(["-a"]);
+            arp_cmd.creation_flags(0x08000000);
+
+            if let Ok(output) = arp_cmd.output() {
+                if let Ok(text) = String::from_utf8(output.stdout) {
+                    for line in text.lines() {
+                        let parts: Vec<&str> = line.split_whitespace().collect();
+                        if parts.len() >= 3 && parts[2].eq_ignore_ascii_case("dynamic") {
+                            let ip_str = parts[0];
+                            if let Ok(ip) = ip_str.parse::<IpAddr>() {
+                                if let IpAddr::V4(ipv4) = ip {
+                                    let octets = ipv4.octets();
+                                    let is_private = octets[0] == 192 && octets[1] == 168
+                                        || octets[0] == 10
+                                        || (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31);
+                                    if is_private {
+                                        if octets[3] == 1 {
+                                            gateway = Some(ip_str.to_string());
+                                        } else if octets[3] != 255 {
+                                            lan_devices.push(ip_str.to_string());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if gateway.is_none() && !lan_devices.is_empty() {
+            let first = &lan_devices[0];
+            if let Some(idx) = first.rfind('.') {
+                gateway = Some(format!("{}.1", &first[..idx]));
+            }
+        }
+
+        self.cached_gateway = gateway.clone();
+        self.cached_lan_devices = lan_devices.clone();
+        self.last_arp_refresh = now;
+
+        (gateway, lan_devices)
+    }
+
     pub fn poll_and_compute_delta(&mut self) -> GraphDelta {
         let entries = self.scan_sockets();
         let now = now_ms();
@@ -278,6 +343,106 @@ impl SocketPoller {
                 threat: None,
             },
         );
+
+        // 2. Default Gateway and LAN devices
+        let (gw_opt, lan_devs) = self.scan_arp_neighbors();
+        let gw_id = if let Some(gw_ip) = gw_opt {
+            let id = format!("ip:{}", gw_ip);
+            current_nodes.insert(
+                id.clone(),
+                GraphNode {
+                    id: id.clone(),
+                    kind: NodeKind::Gateway,
+                    label: format!("Gateway ({})", gw_ip),
+                    pid: None,
+                    exe_path: None,
+                    ip: Some(gw_ip),
+                    hostname: Some("router.local".into()),
+                    country: None,
+                    asn: None,
+                    org: None,
+                    first_seen: now,
+                    last_seen: now,
+                    bytes_in: 250_000,
+                    bytes_out: 480_000,
+                    rate_in: 4500.0,
+                    rate_out: 8500.0,
+                    threat: None,
+                },
+            );
+
+            // Link host -> gateway
+            let host_gw_link_id = format!("link:{}->{}", host_id, id);
+            current_links.insert(
+                host_gw_link_id.clone(),
+                GraphLink {
+                    id: host_gw_link_id,
+                    source: host_id.clone(),
+                    target: id.clone(),
+                    proto: "udp".into(),
+                    port: 53,
+                    service: Some("dns".into()),
+                    bytes_in: 120_000,
+                    bytes_out: 240_000,
+                    rate: 1200.0,
+                    packets: 340,
+                    state: Some("CONNECTED".into()),
+                    first_seen: now,
+                    last_seen: now,
+                },
+            );
+
+            Some(id)
+        } else {
+            None
+        };
+
+        for lan_ip in lan_devs {
+            let lan_id = format!("ip:{}", lan_ip);
+            current_nodes.insert(
+                lan_id.clone(),
+                GraphNode {
+                    id: lan_id.clone(),
+                    kind: NodeKind::Lan,
+                    label: format!("LAN ({})", lan_ip),
+                    pid: None,
+                    exe_path: None,
+                    ip: Some(lan_ip.clone()),
+                    hostname: None,
+                    country: None,
+                    asn: None,
+                    org: None,
+                    first_seen: now,
+                    last_seen: now,
+                    bytes_in: 32_000,
+                    bytes_out: 64_000,
+                    rate_in: 600.0,
+                    rate_out: 1200.0,
+                    threat: None,
+                },
+            );
+
+            let parent_id = gw_id.as_ref().unwrap_or(&host_id);
+            let link_id = format!("link:{}->{}", parent_id, lan_id);
+            current_links.insert(
+                link_id.clone(),
+                GraphLink {
+                    id: link_id,
+                    source: parent_id.clone(),
+                    target: lan_id.clone(),
+                    proto: "tcp".into(),
+                    port: 80,
+                    service: Some("http".into()),
+                    bytes_in: 32_000,
+                    bytes_out: 64_000,
+                    rate: 800.0,
+                    packets: 48,
+                    state: Some("CONNECTED".into()),
+                    first_seen: now,
+                    last_seen: now,
+                },
+            );
+        }
 
         for entry in &entries {
             // Process node
@@ -317,6 +482,7 @@ impl SocketPoller {
 
             // Link host -> process
             let host_proc_link_id = format!("link:{}->{}", host_id, proc_id);
+            let s_local = classify_service(entry.local_port);
             current_links
                 .entry(host_proc_link_id.clone())
                 .or_insert_with(|| GraphLink {
@@ -325,7 +491,7 @@ impl SocketPoller {
                     target: proc_id.clone(),
                     proto: entry.proto.clone(),
                     port: entry.local_port,
-                    service: None,
+                    service: s_local,
                     bytes_in: 1024,
                     bytes_out: 1024,
                     rate: 200.0,
@@ -366,6 +532,7 @@ impl SocketPoller {
 
                 // Link proc -> remote endpoint (aggregate by process + remote IP)
                 let proc_remote_link_id = format!("link:{}->{}", proc_id, remote_id);
+                let s_remote = classify_service(entry.remote_port);
                 current_links
                     .entry(proc_remote_link_id.clone())
                     .and_modify(|l| {
@@ -380,7 +547,7 @@ impl SocketPoller {
                         target: remote_id.clone(),
                         proto: entry.proto.clone(),
                         port: entry.remote_port,
-                        service: None,
+                        service: s_remote,
                         bytes_in: 2048,
                         bytes_out: 4096,
                         rate: 750.0,
@@ -457,6 +624,7 @@ impl SocketPoller {
             update_links,
             remove_link_ids,
             alerts: None,
+            node_positions: None,
         }
     }
 
@@ -483,4 +651,18 @@ pub fn now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
+}
+
+fn classify_service(port: u16) -> Option<String> {
+    match port {
+        22 => Some("ssh".into()),
+        80 => Some("http".into()),
+        443 => Some("https".into()),
+        53 => Some("dns".into()),
+        8080 => Some("http-alt".into()),
+        8443 => Some("c2-ssl".into()),
+        11434 => Some("ollama".into()),
+        7474 => Some("neo4j".into()),
+        _ => None,
+    }
 }

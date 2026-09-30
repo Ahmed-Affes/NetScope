@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNetScopeStore } from "../store/useNetScopeStore";
 import { commands } from "../bindings";
+import { recorder } from "../services/recorder";
 import {
   Bot,
   Database,
@@ -104,8 +105,15 @@ export const AtkSimPanel: React.FC = () => {
     const procTargetId = activeProc ? activeProc.id : hostNodeId;
     const procTargetLabel = activeProc ? activeProc.label : hostName;
 
+    const dispatchDelta = (delta: any) => {
+      store.applyDelta(delta);
+      if (recorder.isRecordingActive()) {
+        recorder.recordDelta(delta);
+      }
+    };
+
     if (s.id === "ssh-brute") {
-      store.applyDelta({
+      dispatchDelta({
         t: now,
         addNodes: [
           {
@@ -160,7 +168,7 @@ export const AtkSimPanel: React.FC = () => {
         ],
       });
     } else if (s.id === "exfil") {
-      store.applyDelta({
+      dispatchDelta({
         t: now,
         addNodes: [
           {
@@ -215,7 +223,7 @@ export const AtkSimPanel: React.FC = () => {
         ],
       });
     } else if (s.id === "c2") {
-      store.applyDelta({
+      dispatchDelta({
         t: now,
         addNodes: [
           {
@@ -273,7 +281,7 @@ export const AtkSimPanel: React.FC = () => {
         ],
       });
     } else if (s.id === "port-scan") {
-      store.applyDelta({
+      dispatchDelta({
         t: now,
         addNodes: [
           {
@@ -328,7 +336,7 @@ export const AtkSimPanel: React.FC = () => {
       });
     } else {
       // General threat scenario (ddos, assault, rogue-device)
-      store.applyDelta({
+      dispatchDelta({
         t: now,
         addNodes: [
           {

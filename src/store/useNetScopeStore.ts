@@ -42,6 +42,7 @@ interface NetScopeState {
   setActiveFilter: (filter: string | null) => void;
   setLayoutMode: (mode: "force" | "radial" | "geo" | "3d") => void;
   cleanSimulations: () => void;
+  clearGraph: () => void;
   setReplayProgress: (progress: number) => void;
   setReplayPlaying: (playing: boolean) => void;
   setReplaySpeed: (speed: number) => void;
@@ -166,7 +167,15 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
   openCommandPalette: () => set({ isCommandPaletteOpen: true }),
   closeCommandPalette: () => set({ isCommandPaletteOpen: false }),
 
-  setTrafficMode: (mode) => set({ trafficMode: mode }),
+  setTrafficMode: (mode) =>
+    set((s) => ({
+      trafficMode: mode,
+      nodes: {},
+      links: {},
+      selectedNodeId: null,
+      selectedLinkId: null,
+      graphVersion: s.graphVersion + 1,
+    })),
 
   toggleRecording: () =>
     set((s) => ({
@@ -211,6 +220,16 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
         graphVersion: state.graphVersion + 1,
       };
     }),
+
+  clearGraph: () =>
+    set((state) => ({
+      nodes: {},
+      links: {},
+      selectedNodeId: null,
+      selectedLinkId: null,
+      alerts: [],
+      graphVersion: state.graphVersion + 1,
+    })),
 
   setReplayProgress: (progress) => set({ replayProgress: progress }),
   setReplayPlaying: (playing) => set({ replayPlaying: playing }),

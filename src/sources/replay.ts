@@ -108,9 +108,26 @@ export class ReplaySource implements TrafficSource {
           if (u.lastSeen !== undefined) l.lastSeen = u.lastSeen;
         }
       }
+
+      if (delta.nodePositions) {
+        for (const [id, pos] of Object.entries(delta.nodePositions)) {
+          const n = this.nodesMap.get(id);
+          if (n) {
+            n.x = pos.x;
+            n.y = pos.y;
+          }
+        }
+      }
     }
 
     this.currentIndex = clamped;
+
+    const currentPositions: Record<string, { x: number; y: number }> = {};
+    for (const n of this.nodesMap.values()) {
+      if (n.x !== undefined && n.y !== undefined) {
+        currentPositions[n.id] = { x: n.x, y: n.y };
+      }
+    }
 
     // Emit whole snapshot as delta
     const currentDelta: GraphDelta = {
@@ -122,6 +139,7 @@ export class ReplaySource implements TrafficSource {
       updateLinks: [],
       removeLinkIds: [],
       alerts: this.allDeltas[clamped]?.alerts,
+      nodePositions: Object.keys(currentPositions).length > 0 ? currentPositions : undefined,
     };
 
     for (const cb of this.listeners) {
@@ -150,6 +168,15 @@ export class ReplaySource implements TrafficSource {
       }
 
       const delta = this.allDeltas[this.currentIndex++];
+      if (delta.nodePositions) {
+        for (const [id, pos] of Object.entries(delta.nodePositions)) {
+          const n = this.nodesMap.get(id);
+          if (n) {
+            n.x = pos.x;
+            n.y = pos.y;
+          }
+        }
+      }
       for (const cb of this.listeners) {
         cb(delta);
       }

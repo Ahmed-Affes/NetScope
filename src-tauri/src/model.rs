@@ -142,6 +142,8 @@ pub struct GraphDelta {
     pub remove_link_ids: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alerts: Option<Vec<Alert>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub node_positions: Option<std::collections::HashMap<String, [f32; 2]>>,
 }
 
 #[derive(Serialize, Deserialize, specta::Type, Clone, Debug)]

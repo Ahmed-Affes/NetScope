@@ -37,37 +37,51 @@ class UpdateService {
 
   public async checkForUpdates(force: boolean = false): Promise<UpdateInfo | null> {
     const now = Date.now();
-    // Cache check for 10 minutes unless forced
-    if (!force && this.cachedUpdate && now - this.lastCheckTime < 10 * 60 * 1000) {
+    // Cache check for 3 minutes unless forced
+    if (!force && this.cachedUpdate && now - this.lastCheckTime < 3 * 60 * 1000) {
       return this.cachedUpdate;
     }
 
     try {
-      const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-        headers: {
-          Accept: "application/vnd.github.v3+json",
-        },
+      let releaseData: any = null;
+
+      // 1. Try latest release endpoint
+      const resLatest = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+        headers: { Accept: "application/vnd.github.v3+json" },
       });
 
-      if (!res.ok) {
-        if (res.status === 404) {
-          // No releases published yet
-          return null;
+      if (resLatest.ok) {
+        releaseData = await resLatest.json();
+      } else {
+        // 2. Fallback to releases list (captures prereleases and recent tags)
+        const resList = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=5`, {
+          headers: { Accept: "application/vnd.github.v3+json" },
+        });
+        if (resList.ok) {
+          const list = await resList.json();
+          if (Array.isArray(list) && list.length > 0) {
+            releaseData = list[0];
+          }
         }
-        throw new Error(`GitHub Releases API returned status ${res.status}`);
       }
 
-      const data = await res.json();
-      const tagName = data.tag_name || "";
+      if (!releaseData) {
+        return null;
+      }
+
+      const tagName = releaseData.tag_name || "";
       const isNewer = compareVersions(tagName, CURRENT_VERSION) > 0;
 
       // Find Windows .exe asset if available
-      let exeDownloadUrl = data.html_url;
-      if (Array.isArray(data.assets)) {
-        const exeAsset = data.assets.find(
+      let exeDownloadUrl = releaseData.html_url || `https://github.com/${REPO}/releases`;
+      if (Array.isArray(releaseData.assets)) {
+        const exeAsset = releaseData.assets.find(
           (a: any) =>
             typeof a.name === "string" &&
-            (a.name.endsWith(".exe") || a.name.includes("Setup") || a.name.includes("x64"))
+            (a.name.endsWith(".exe") ||
+              a.name.includes("Setup") ||
+              a.name.includes("x64") ||
+              a.name.endsWith(".msi"))
         );
         if (exeAsset && exeAsset.browser_download_url) {
           exeDownloadUrl = exeAsset.browser_download_url;
@@ -77,9 +91,11 @@ class UpdateService {
       const updateInfo: UpdateInfo = {
         version: tagName.replace(/^v/, ""),
         tagName,
-        name: data.name || `NetScope ${tagName}`,
-        notes: data.body || "Performance enhancements, live PC monitoring, and security stability updates.",
-        publishedAt: data.published_at || new Date().toISOString(),
+        name: releaseData.name || `NetScope ${tagName}`,
+        notes:
+          releaseData.body ||
+          "### NetScope Desktop Update\n- Real Windows ARP LAN & Gateway auto-discovery\n- Real-time physics anti-collision layout\n- Interactive threat simulation (SSH brute force & C2 detection)\n- Recorded node movements & 30 FPS drag replay",
+        publishedAt: releaseData.published_at || new Date().toISOString(),
         downloadUrl: exeDownloadUrl,
         hasUpdate: isNewer,
       };
@@ -91,6 +107,19 @@ class UpdateService {
       console.warn("Update check failed:", err);
       return null;
     }
+  }
+
+  public getMockUpdate(): UpdateInfo {
+    return {
+      version: "0.3.0",
+      tagName: "v0.3.0",
+      name: "NetScope v0.3.0 - Neural Cyber Topology & Threat Defense",
+      notes:
+        "### What's New in v0.3.0\n- 🚀 **Windows Native Telemetry**: Automatic Gateway and LAN ARP scanner with zero config.\n- 🛡️ **Threat Defense & Alerts**: Live SSH brute force detection and malware beacon visualizer.\n- ⚡ **GPU Layout Engine**: Instant anti-clump physics and golden spiral layout.\n- 🎥 **Full Session Recording**: Tracks live node dragging, traffic bursts, and app spawns at 30 FPS.",
+      publishedAt: new Date().toISOString(),
+      downloadUrl: `https://github.com/${REPO}/releases`,
+      hasUpdate: true,
+    };
   }
 
   public isDismissed(version: string): boolean {
@@ -109,12 +138,26 @@ class UpdateService {
     }
   }
 
-  public openDownload(url: string): void {
+  public resetDismissed(version: string): void {
     try {
-      window.open(url, "_blank");
-    } catch {
-      window.location.href = url;
+      localStorage.removeItem(`netscope_dismissed_update_${version}`);
+    } catch (e) {
+      console.warn("Failed to clear dismissed update", e);
     }
+  }
+
+  public async openDownload(url: string): Promise<void> {
+    try {
+      if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
+        // Try Tauri shell open
+        const { open } = await import("@tauri-apps/plugin-shell");
+        await open(url);
+        return;
+      }
+    } catch (err) {
+      console.warn("Tauri shell open failed, falling back to window.open:", err);
+    }
+    window.open(url, "_blank");
   }
 }
 

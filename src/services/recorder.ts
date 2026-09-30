@@ -8,6 +8,8 @@ class SessionRecorder {
   private chunkStartTime: number = 0;
   private chunkDeltas: GraphDelta[] = [];
   private flushTimer: number | null = null;
+  private secondsTimer: number | null = null;
+  private lastMoveRecord: number = 0;
 
   public async startRecording(title?: string): Promise<string> {
     if (this.currentSessionId) {
@@ -27,6 +29,14 @@ class SessionRecorder {
 
     useNetScopeStore.getState().setRecording(true);
 
+    // 1-second UI clock timer
+    if (this.secondsTimer !== null) clearInterval(this.secondsTimer);
+    this.secondsTimer = window.setInterval(() => {
+      useNetScopeStore.setState((s) => ({
+        recordingSeconds: s.recordingSeconds + 1,
+      }));
+    }, 1000);
+
     // 10-second batch upload interval
     this.flushTimer = window.setInterval(() => {
       this.flushChunk();
@@ -38,6 +48,27 @@ class SessionRecorder {
   public recordDelta(delta: GraphDelta) {
     if (!this.currentSessionId) return;
     this.chunkDeltas.push(delta);
+  }
+
+  public recordNodeMove(nodeId: string, x: number, y: number) {
+    if (!this.currentSessionId) return;
+    const now = Date.now();
+    // Throttle movement records to 30 Hz (33ms) to keep recording compact
+    if (now - this.lastMoveRecord < 33) return;
+    this.lastMoveRecord = now;
+
+    this.recordDelta({
+      t: now,
+      addNodes: [],
+      updateNodes: [],
+      removeNodeIds: [],
+      addLinks: [],
+      updateLinks: [],
+      removeLinkIds: [],
+      nodePositions: {
+        [nodeId]: { x: Math.round(x), y: Math.round(y) },
+      },
+    });
   }
 
   private async flushChunk() {
@@ -60,6 +91,11 @@ class SessionRecorder {
 
   public async stopRecording(): Promise<string | null> {
     if (!this.currentSessionId) return null;
+
+    if (this.secondsTimer !== null) {
+      clearInterval(this.secondsTimer);
+      this.secondsTimer = null;
+    }
 
     if (this.flushTimer !== null) {
       clearInterval(this.flushTimer);

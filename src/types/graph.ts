@@ -97,6 +97,7 @@ export interface GraphDelta {
   updateLinks: LinkUpdate[];
   removeLinkIds: string[];
   alerts?: Alert[];
+  nodePositions?: Record<string, { x: number; y: number }>;
 }
 
 export interface SystemMetrics {

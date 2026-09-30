@@ -4,12 +4,12 @@ import { useNetScopeStore } from "../store/useNetScopeStore";
 import { recorder } from "../services/recorder";
 import {
   Activity,
-  Download,
   Maximize2,
   Minus,
   Search,
   ShieldAlert,
   Smartphone,
+  Sparkles,
   X,
 } from "lucide-react";
 
@@ -150,17 +150,16 @@ export const TitleBar: React.FC = () => {
           <span>REMOTE</span>
         </button>
 
-        {/* Desktop Releases Link & Update Badge */}
-        <a
-          href="https://github.com/Ahmed-Affes/NetScope/releases"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-900/40 hover:border-cyan-400 transition-all shadow-[0_0_8px_rgba(34,211,238,0.2)]"
-          title="Download latest Windows Desktop App installer (.exe)"
+        {/* Desktop Releases & Interactive Update Checker */}
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("netscope:check-update", { detail: { force: true } }))}
+          className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-900/40 hover:border-cyan-400 transition-all shadow-[0_0_8px_rgba(34,211,238,0.2)]"
+          title="Check for NetScope Desktop Updates or Preview Update Modal"
         >
-          <Download className="w-3 h-3 text-cyan-400" />
+          <Sparkles className="w-3 h-3 text-cyan-400 animate-pulse" />
           <span className="font-semibold">v0.2.1</span>
-        </a>
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping ml-0.5" />
+        </button>
       </div>
 
       {/* Center: Search & Layout Switcher */}

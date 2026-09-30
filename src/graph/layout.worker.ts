@@ -327,23 +327,27 @@ function configureSimulationForces(mode: string, width: number, height: number) 
             const src = typeof link.source === "object" ? link.source.kind : "";
             const tgt = typeof link.target === "object" ? link.target.kind : "";
             if (src === "host" || tgt === "host") return 240;
-            if (src === "threat" || tgt === "threat") return 200;
-            return 160;
+            if (src === "threat" || tgt === "threat") return 210;
+            return 170;
           })
           .strength(0.65)
       )
       .force(
         "charge",
-        forceManyBody<WorkerNode>().strength((d) =>
-          d.kind === "host" ? -1000 : d.kind === "process" || d.kind === "docker" ? -600 : -350
-        )
+        forceManyBody<WorkerNode>()
+          .strength((d) =>
+            d.kind === "host" ? -1200 : d.kind === "threat" ? -750 : d.kind === "process" || d.kind === "docker" ? -600 : -350
+          )
+          .distanceMin(50)
+          .distanceMax(650)
       )
       .force("center", forceCenter(cx, cy).strength(0.04))
       .force(
         "collide",
         forceCollide<WorkerNode>()
-          .radius((d) => (d.kind === "host" ? 55 : d.kind === "process" || d.kind === "docker" ? 44 : 36))
-          .strength(0.95)
+          .radius((d) => (d.kind === "host" ? 65 : d.kind === "threat" ? 52 : d.kind === "process" || d.kind === "docker" ? 48 : 38))
+          .strength(1.0)
+          .iterations(2)
       );
   }
 }
@@ -352,12 +356,14 @@ self.onmessage = (event: MessageEvent) => {
   const { type, payload } = event.data;
 
   if (type === "INIT" || type === "UPDATE_GRAPH") {
-    const { nodes, links, width, height, layoutMode } = payload;
-    currentWidth = width || 1200;
-    currentHeight = height || 800;
+    const { nodes, links, width, height, layoutMode, nodePositions } = payload;
+    currentWidth = Math.max(width || 0, 1200);
+    currentHeight = Math.max(height || 0, 800);
     const cx = currentWidth / 2;
     const cy = currentHeight / 2;
 
+    const prevNodeCount = nodeMap.size;
+    const prevLinkCount = currentLinks.length;
     const incomingNodeIds = new Set(nodes.map((n: { id: string }) => n.id));
 
     // Remove deleted nodes
@@ -367,23 +373,26 @@ self.onmessage = (event: MessageEvent) => {
       }
     }
 
-    // Add or update nodes while keeping previous positions
-    nodes.forEach((n: { id: string; kind: string }, i: number) => {
+    // Add or update nodes with golden ratio spiral initial layout
+    nodes.forEach((n: { id: string; kind: string; x?: number; y?: number }, i: number) => {
       const isHost = n.kind === "host";
       const radius = isHost ? 26 : n.kind === "process" ? 14 : n.kind === "threat" ? 14 : 10;
 
       let existing = nodeMap.get(n.id);
       if (!existing) {
-        const angle = i * 0.45;
-        const dist = isHost ? 0 : 130 + (i % 6) * 45;
+        const angle = i * 2.39996 + 0.5 + (Math.random() - 0.5) * 0.2;
+        const dist = isHost ? 0 : 160 + (i % 7) * 45 + (Math.random() - 0.5) * 20;
+        const initX = (n.x && n.x > 10) ? n.x : (isHost ? cx : cx + Math.cos(angle) * dist);
+        const initY = (n.y && n.y > 10) ? n.y : (isHost ? cy : cy + Math.sin(angle) * dist);
+
         existing = {
           id: n.id,
           kind: n.kind,
           radius,
-          x: isHost ? cx : cx + Math.cos(angle) * dist,
-          y: isHost ? cy : cy + Math.sin(angle) * dist,
-          fx: isHost ? cx : undefined,
-          fy: isHost ? cy : undefined,
+          x: initX,
+          y: initY,
+          fx: isHost ? cx : (n.x && n.x > 10 ? n.x : undefined),
+          fy: isHost ? cy : (n.y && n.y > 10 ? n.y : undefined),
         };
         nodeMap.set(n.id, existing);
       } else {
@@ -392,9 +401,25 @@ self.onmessage = (event: MessageEvent) => {
         if (isHost) {
           existing.fx = cx;
           existing.fy = cy;
+        } else if (n.x !== undefined && n.y !== undefined && n.x > 10 && n.y > 10) {
+          existing.x = n.x;
+          existing.y = n.y;
         }
       }
     });
+
+    // Apply any explicit recorded positions
+    if (nodePositions) {
+      for (const [id, pos] of Object.entries(nodePositions as Record<string, { x: number; y: number }>)) {
+        const n = nodeMap.get(id);
+        if (n && n.kind !== "host") {
+          n.x = pos.x;
+          n.y = pos.y;
+          n.fx = pos.x;
+          n.fy = pos.y;
+        }
+      }
+    }
 
     currentNodes = Array.from(nodeMap.values());
 
@@ -411,8 +436,10 @@ self.onmessage = (event: MessageEvent) => {
     const modeChanged = mode !== currentLayoutMode;
     currentLayoutMode = mode;
 
-    const prevCount = currentNodes.length;
-    const structureChanged = nodeMap.size !== prevCount || modeChanged;
+    const structureChanged =
+      nodeMap.size !== prevNodeCount ||
+      currentLinks.length !== prevLinkCount ||
+      modeChanged;
 
     if (!simulation) {
       simulation = forceSimulation<WorkerNode, WorkerLink>(currentNodes);
@@ -453,7 +480,20 @@ self.onmessage = (event: MessageEvent) => {
     if (modeChanged) {
       simulation.alpha(0.85).alphaDecay(0.035).restart();
     } else if (structureChanged) {
-      simulation.alpha(0.18).alphaDecay(0.045).restart();
+      simulation.alpha(0.4).alphaDecay(0.04).restart();
+    }
+  } else if (type === "RESIZE") {
+    const { width, height } = payload;
+    currentWidth = Math.max(width || 0, 1200);
+    currentHeight = Math.max(height || 0, 800);
+    const hostNode = currentNodes.find((n) => n.kind === "host");
+    if (hostNode) {
+      hostNode.fx = currentWidth / 2;
+      hostNode.fy = currentHeight / 2;
+    }
+    configureSimulationForces(currentLayoutMode, currentWidth, currentHeight);
+    if (simulation) {
+      simulation.alpha(0.3).restart();
     }
   } else if (type === "DRAG_NODE") {
     const { id, x, y, isFixed } = payload;

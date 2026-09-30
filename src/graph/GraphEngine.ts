@@ -14,6 +14,7 @@ import { getLinkColor, NODE_COLORS, getNodeRadius } from "./theme";
 export interface GraphEngineOptions {
   onSelectNode?: (nodeId: string | null) => void;
   onSelectLink?: (linkId: string | null) => void;
+  onNodeDrag?: (nodeId: string, x: number, y: number) => void;
 }
 
 interface RenderNode {
@@ -71,8 +72,8 @@ export class GraphEngine {
   }
 
   public async init(): Promise<void> {
-    const width = this.containerElement.clientWidth || window.innerWidth;
-    const height = this.containerElement.clientHeight || window.innerHeight;
+    const width = Math.max(this.containerElement.clientWidth || 0, window.innerWidth || 0, 1200);
+    const height = Math.max(this.containerElement.clientHeight || 0, window.innerHeight || 0, 800);
 
     await this.app.init({
       width,
@@ -131,6 +132,9 @@ export class GraphEngine {
             renderNode.y = y;
             renderNode.container.x = x;
             renderNode.container.y = y;
+            renderNode.container.visible = true;
+            renderNode.labelText.visible = true;
+            renderNode.labelBg.visible = true;
 
             const cx = this.app.screen.width / 2;
             const cy = this.app.screen.height / 2;
@@ -184,7 +188,8 @@ export class GraphEngine {
   public updateGraph(
     nodes: GraphNode[],
     links: GraphLink[],
-    layoutMode = "force"
+    layoutMode = "force",
+    nodePositions?: Record<string, { x: number; y: number }>
   ): void {
     if (this.isDestroyed) return;
 
@@ -233,16 +238,17 @@ export class GraphEngine {
 
     // Post to worker
     if (this.worker) {
-      const width = this.app.screen.width;
-      const height = this.app.screen.height;
+      const width = Math.max(this.app.screen.width, 1200);
+      const height = Math.max(this.app.screen.height, 800);
       this.worker.postMessage({
         type: "UPDATE_GRAPH",
         payload: {
-          nodes: nodes.map((n) => ({ id: n.id, kind: n.kind })),
+          nodes: nodes.map((n) => ({ id: n.id, kind: n.kind, x: n.x, y: n.y })),
           links: links.map((l) => ({ source: l.source, target: l.target })),
           width,
           height,
           layoutMode,
+          nodePositions,
         },
       });
     }
@@ -308,6 +314,20 @@ export class GraphEngine {
         this.options.onSelectNode(node.id);
       }
     });
+
+    // Initialize visibility and position
+    const cachedPos = this.nodePositions.get(node.id);
+    if (cachedPos) {
+      container.x = cachedPos.x;
+      container.y = cachedPos.y;
+      container.visible = true;
+      labelBg.visible = true;
+      labelText.visible = true;
+    } else {
+      container.visible = false;
+      labelBg.visible = false;
+      labelText.visible = false;
+    }
 
     return {
       data: node,
@@ -426,6 +446,10 @@ export class GraphEngine {
           type: "DRAG_NODE",
           payload: { id: this.draggedNodeId, x: worldX, y: worldY, isFixed: true },
         });
+
+        if (this.options.onNodeDrag) {
+          this.options.onNodeDrag(this.draggedNodeId, worldX, worldY);
+        }
       } else if (this.isDraggingCamera) {
         this.panX = e.clientX - this.dragStartX;
         this.panY = e.clientY - this.dragStartY;
@@ -471,9 +495,15 @@ export class GraphEngine {
 
   private onResize = (): void => {
     if (!this.containerElement || this.isDestroyed) return;
-    const width = this.containerElement.clientWidth;
-    const height = this.containerElement.clientHeight;
+    const width = Math.max(this.containerElement.clientWidth, window.innerWidth, 1200);
+    const height = Math.max(this.containerElement.clientHeight, window.innerHeight, 800);
     this.app.renderer.resize(width, height);
+    if (this.worker) {
+      this.worker.postMessage({
+        type: "RESIZE",
+        payload: { width, height },
+      });
+    }
   };
 
   public fitView(): void {

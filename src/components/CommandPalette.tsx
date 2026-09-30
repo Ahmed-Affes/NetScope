@@ -223,6 +223,26 @@ export const CommandPalette: React.FC = () => {
                 <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Stream to Phone (Remote HUD Viewer)</span>
               </Command.Item>
+              <Command.Item
+                onSelect={() => {
+                  window.dispatchEvent(new CustomEvent("netscope:check-update", { detail: { force: true } }));
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
+              >
+                <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Check for NetScope Updates</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => {
+                  window.dispatchEvent(new CustomEvent("netscope:check-update", { detail: { mock: true } }));
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
+              >
+                <Layers className="w-3.5 h-3.5 text-fuchsia-400" />
+                <span>Preview Update Modal (Demo v0.3.0)</span>
+              </Command.Item>
             </Command.Group>
 
 
