@@ -53,6 +53,11 @@ jobs:
         with:
           components: clippy, rustfmt
 
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri"
+
       - name: Rustfmt Check
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 
@@ -67,7 +72,6 @@ jobs:
 
   build-desktop:
     name: Build Windows Desktop App (.exe)
-    needs: [frontend, backend]
     if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     steps:
@@ -89,6 +93,11 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile=false
