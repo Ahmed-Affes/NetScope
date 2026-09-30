@@ -45,7 +45,7 @@ export interface SystemMetrics {
 export const commands = {
   async getAppInfo(): Promise<AppInfo> {
     if (isTauri()) return inv<AppInfo>("get_app_info");
-    return { name: "NetScope", version: "0.2.5", mode: "simulator", isElevated: false };
+    return { name: "NetScope", version: "0.2.6", mode: "simulator", isElevated: false };
   },
 
   async getSystemMetrics(): Promise<SystemMetrics> {
