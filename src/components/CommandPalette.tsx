@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import { Command } from "cmdk";
 import { useNetScopeStore } from "../store/useNetScopeStore";
-import { commands } from "../bindings";
 import {
   Activity,
   Layers,
@@ -9,7 +8,6 @@ import {
   Search,
   Shield,
   Smartphone,
-  Trash2,
 } from "lucide-react";
 
 export const CommandPalette: React.FC = () => {
@@ -20,7 +18,6 @@ export const CommandPalette: React.FC = () => {
     setActiveFilter,
     setLayoutMode,
     toggleRecording,
-    cleanSimulations,
   } = useNetScopeStore();
 
   const setOpen = (val: boolean) => {
@@ -156,41 +153,6 @@ export const CommandPalette: React.FC = () => {
               </Command.Item>
             </Command.Group>
 
-            {/* Attack Simulations */}
-            <Command.Group heading="Simulations" className="text-[10px] text-slate-400 uppercase tracking-wider px-2 py-1 font-bold">
-              <Command.Item
-                onSelect={async () => {
-                  await commands.triggerSimulation("ssh-brute");
-                  setOpen(false);
-                }}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-red-500/20 hover:text-red-300 text-slate-300"
-              >
-                <Radio className="w-3.5 h-3.5 text-red-400" />
-                <span>Run Scenario: SSH Brute Force</span>
-              </Command.Item>
-              <Command.Item
-                onSelect={async () => {
-                  await commands.triggerSimulation("ddos");
-                  setOpen(false);
-                }}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-red-500/20 hover:text-red-300 text-slate-300"
-              >
-                <Radio className="w-3.5 h-3.5 text-red-400" />
-                <span>Run Scenario: DDoS Flood</span>
-              </Command.Item>
-              <Command.Item
-                onSelect={async () => {
-                  cleanSimulations();
-                  await commands.cleanSimulations();
-                  setOpen(false);
-                }}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-slate-700/50 text-slate-300"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-slate-400" />
-                <span>Clean Up All Simulations</span>
-              </Command.Item>
-            </Command.Group>
-
             {/* Actions */}
             <Command.Group heading="Controls" className="text-[10px] text-slate-400 uppercase tracking-wider px-2 py-1 font-bold">
               <Command.Item
@@ -232,16 +194,6 @@ export const CommandPalette: React.FC = () => {
               >
                 <Activity className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Check for NetScope Updates</span>
-              </Command.Item>
-              <Command.Item
-                onSelect={() => {
-                  window.dispatchEvent(new CustomEvent("netscope:check-update", { detail: { mock: true } }));
-                  setOpen(false);
-                }}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
-              >
-                <Layers className="w-3.5 h-3.5 text-fuchsia-400" />
-                <span>Preview Update Modal (Demo v0.3.0)</span>
               </Command.Item>
             </Command.Group>
 

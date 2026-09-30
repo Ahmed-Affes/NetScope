@@ -16,13 +16,11 @@ export const StatsPill: React.FC = () => {
             className={`w-2 h-2 rounded-full ${
               trafficMode === "live"
                 ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"
-                : trafficMode === "replay"
-                ? "bg-amber-400"
-                : "bg-cyan-400"
+                : "bg-purple-400"
             }`}
           />
           <span className="font-bold text-[10px] tracking-wider uppercase text-slate-400">
-            {trafficMode === "live" ? "LIVE PC" : trafficMode.toUpperCase()}
+            {trafficMode === "live" ? "LIVE PC" : "REPLAY"}
           </span>
         </div>
         <span className="text-white/20">|</span>

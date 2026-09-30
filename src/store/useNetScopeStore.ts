@@ -6,12 +6,11 @@ interface NetScopeState {
   links: Record<string, GraphLink>;
   metrics: SystemMetrics;
   alerts: Alert[];
-  trafficMode: "simulator" | "live" | "replay";
+  trafficMode: "live" | "replay";
   isRecording: boolean;
   recordingSeconds: number;
   selectedNodeId: string | null;
   selectedLinkId: string | null;
-  isSimPanelOpen: boolean;
   isMetricsOpen: boolean;
   isLegendOpen: boolean;
   isCommandPaletteOpen: boolean;
@@ -30,18 +29,16 @@ interface NetScopeState {
   setMetrics: (metrics: SystemMetrics) => void;
   selectNode: (id: string | null) => void;
   selectLink: (id: string | null) => void;
-  toggleSimPanel: () => void;
   toggleMetrics: () => void;
   toggleLegend: () => void;
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
-  setTrafficMode: (mode: "simulator" | "live" | "replay") => void;
+  setTrafficMode: (mode: "live" | "replay") => void;
   toggleRecording: () => void;
   setRecording: (isRecording: boolean) => void;
   setSearchQuery: (query: string) => void;
   setActiveFilter: (filter: string | null) => void;
   setLayoutMode: (mode: "force" | "radial" | "geo" | "3d") => void;
-  cleanSimulations: () => void;
   clearGraph: () => void;
   setReplayProgress: (progress: number) => void;
   setReplayPlaying: (playing: boolean) => void;
@@ -49,16 +46,16 @@ interface NetScopeState {
 }
 
 const initialMetrics: SystemMetrics = {
-  cpuUsage: 6.4,
-  ramUsedBytes: 78_600_000_000,
-  ramTotalBytes: 121_700_000_000,
-  ramUsagePercent: 66.6,
-  gpuUsage: 2.0,
-  gpuTemp: 49.0,
-  diskFreeBytes: 1_571_100_000_000,
-  diskTotalBytes: 3_560_000_000_000,
-  diskUsagePercent: 55.9,
-  dockerContainers: 17,
+  cpuUsage: 0,
+  ramUsedBytes: 0,
+  ramTotalBytes: 0,
+  ramUsagePercent: 0,
+  gpuUsage: null,
+  gpuTemp: null,
+  diskFreeBytes: 0,
+  diskTotalBytes: 0,
+  diskUsagePercent: 0,
+  dockerContainers: 0,
 };
 
 export const useNetScopeStore = create<NetScopeState>((set) => ({
@@ -71,7 +68,6 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
   recordingSeconds: 0,
   selectedNodeId: null,
   selectedLinkId: null,
-  isSimPanelOpen: true, // Visible by default as in user's target UI
   isMetricsOpen: true, // Visible by default
   isLegendOpen: true,  // Visible by default
   isCommandPaletteOpen: false,
@@ -161,7 +157,6 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
       selectedNodeId: id ? null : undefined,
     }),
 
-  toggleSimPanel: () => set((s) => ({ isSimPanelOpen: !s.isSimPanelOpen })),
   toggleMetrics: () => set((s) => ({ isMetricsOpen: !s.isMetricsOpen })),
   toggleLegend: () => set((s) => ({ isLegendOpen: !s.isLegendOpen })),
   openCommandPalette: () => set({ isCommandPaletteOpen: true }),
@@ -196,30 +191,6 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
     })),
 
   setLayoutMode: (mode) => set({ layoutMode: mode }),
-
-  cleanSimulations: () =>
-    set((state) => {
-      const nextNodes: Record<string, GraphNode> = {};
-      for (const [id, node] of Object.entries(state.nodes)) {
-        if (node.kind !== "threat") {
-          nextNodes[id] = node;
-        }
-      }
-
-      const nextLinks: Record<string, GraphLink> = {};
-      for (const [id, link] of Object.entries(state.links)) {
-        if (nextNodes[link.source] && nextNodes[link.target]) {
-          nextLinks[id] = link;
-        }
-      }
-
-      return {
-        nodes: nextNodes,
-        links: nextLinks,
-        alerts: [], // Clean all alerts when purging simulations
-        graphVersion: state.graphVersion + 1,
-      };
-    }),
 
   clearGraph: () =>
     set((state) => ({

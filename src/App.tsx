@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import { TitleBar } from "./components/TitleBar";
 import { MetricsPanel } from "./components/MetricsPanel";
-import { AtkSimPanel } from "./components/AtkSimPanel";
 import { StatsPill } from "./components/StatsPill";
 import { LegendPanel } from "./components/LegendPanel";
 import { InspectorPanel } from "./components/InspectorPanel";
@@ -106,10 +105,9 @@ export const App: React.FC = () => {
         <NoPrivilegeBanner />
         <FilterBar />
 
-        {/* Left Cyber Dock (Metrics & ATK-SIM cleanly stacked, never overlapping) */}
+        {/* Left Cyber Dock (Real PC Metrics) */}
         <div className="absolute top-14 left-4 z-40 flex flex-col gap-2.5 max-h-[calc(100vh-80px)] overflow-y-auto custom-scrollbar pointer-events-none pr-1">
           <MetricsPanel />
-          <AtkSimPanel />
         </div>
 
         {/* Right Cyber Dock (Inspector & Security Alerts cleanly stacked, never overlapping) */}

@@ -77,7 +77,7 @@ export const Timeline: React.FC = () => {
     return `${m}:${s}`;
   };
 
-  // If in live or simulator mode and not recording, only render the Sessions history button
+  // If in live mode and not recording, only render the Sessions history button
   if (trafficMode !== "replay" && !isRecording) {
     return (
       <div className="absolute bottom-4 right-52 z-30 flex items-center gap-2 pointer-events-auto">

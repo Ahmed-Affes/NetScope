@@ -7,7 +7,6 @@ import {
   Maximize2,
   Minus,
   Search,
-  ShieldAlert,
   Smartphone,
   Sparkles,
   X,
@@ -21,8 +20,6 @@ export const TitleBar: React.FC = () => {
     isRecording,
     setRecording,
     recordingSeconds,
-    isSimPanelOpen,
-    toggleSimPanel,
     layoutMode,
     setLayoutMode,
     openCommandPalette,
@@ -113,17 +110,6 @@ export const TitleBar: React.FC = () => {
           >
             REPLAY
           </button>
-          <button
-            onClick={() => setTrafficMode("simulator")}
-            title="Simulator Mode: Rich demo with a full cyber topology — gateway, LAN devices, threats, internet endpoints and live traffic pulses. Great for exploring the UI."
-            className={`px-2 py-0.5 rounded transition-colors ${
-              trafficMode === "simulator"
-                ? "bg-cyan-500/20 text-cyan-300 font-semibold shadow-[0_0_8px_rgba(34,211,238,0.3)] border border-cyan-500/30"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            SIM
-          </button>
         </div>
 
         {/* Recording Toggle */}
@@ -197,19 +183,8 @@ export const TitleBar: React.FC = () => {
         </div>
       </div>
 
-      {/* Right: ATK-SIM & Window Controls */}
+      {/* Right: Window Controls */}
       <div className="flex items-center gap-1.5">
-        <button
-          onClick={toggleSimPanel}
-          className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs border transition-colors ${
-            isSimPanelOpen
-              ? "bg-red-500/20 border-red-500/40 text-red-300 shadow-[0_0_8px_rgba(239,68,68,0.3)]"
-              : "bg-[#0e121a] border-white/[0.08] text-slate-300 hover:text-white"
-          }`}
-        >
-          <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
-          <span className="font-semibold text-[11px]">ATK-SIM</span>
-        </button>
 
         {/* Window controls */}
         <div className="flex items-center ml-2 border-l border-white/[0.08] pl-2">

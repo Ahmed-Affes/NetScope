@@ -116,7 +116,7 @@ describe("useNetScopeStore", () => {
     expect(Object.keys(finalState.links)).toHaveLength(0);
   });
 
-  it("cleans simulations properly", () => {
+  it("clears graph state properly", () => {
     const normalNode: GraphNode = {
       id: "host:local",
       kind: "host",
@@ -130,7 +130,7 @@ describe("useNetScopeStore", () => {
     };
 
     const threatNode: GraphNode = {
-      id: "threat:sim1",
+      id: "threat:detected1",
       kind: "threat",
       label: "c2-darkcomet.evil",
       firstSeen: 1000,
@@ -144,24 +144,23 @@ describe("useNetScopeStore", () => {
     useNetScopeStore.setState({
       nodes: {
         "host:local": normalNode,
-        "threat:sim1": threatNode,
+        "threat:detected1": threatNode,
       },
       alerts: [
         {
           id: "alert:1",
           timestamp: 1000,
           severity: "high",
-          rule: "Simulated C2 Callback",
+          rule: "Detected C2 Callback",
           description: "Malware connection",
           acked: false,
         },
       ],
     });
 
-    useNetScopeStore.getState().cleanSimulations();
+    useNetScopeStore.getState().clearGraph();
     const state = useNetScopeStore.getState();
-    expect(state.nodes["threat:sim1"]).toBeUndefined();
-    expect(state.nodes["host:local"]).toBeDefined();
+    expect(Object.keys(state.nodes)).toHaveLength(0);
     expect(state.alerts).toHaveLength(0);
   });
 });

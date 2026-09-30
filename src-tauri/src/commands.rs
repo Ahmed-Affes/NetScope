@@ -63,17 +63,26 @@ pub fn get_system_metrics() -> SystemMetrics {
         0.0
     };
 
+    let docker_count = sys
+        .processes()
+        .values()
+        .filter(|p| {
+            let n = p.name().to_string_lossy().to_lowercase();
+            n.contains("docker") || n.contains("dockerd") || n.contains("containerd")
+        })
+        .count() as u32;
+
     SystemMetrics {
         cpu_usage,
         ram_used_bytes: ram_used,
         ram_total_bytes: ram_total,
         ram_usage_percent: ram_pct,
-        gpu_usage: Some(2.0),
-        gpu_temp: Some(49.0),
+        gpu_usage: None,
+        gpu_temp: None,
         disk_free_bytes: disk_free,
         disk_total_bytes: disk_total,
         disk_usage_percent: disk_pct,
-        docker_containers: 0,
+        docker_containers: docker_count,
     }
 }
 

@@ -1,14 +1,12 @@
 import React, { useState } from "react";
 import { ShieldCheck, X, ChevronRight, ExternalLink } from "lucide-react";
-import { useNetScopeStore } from "../store/useNetScopeStore";
 import { commands } from "../bindings";
 
 export const NoPrivilegeBanner: React.FC = () => {
   const [dismissed, setDismissed] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const trafficMode = useNetScopeStore((s) => s.trafficMode);
 
-  if (dismissed || trafficMode === "simulator") return null;
+  if (dismissed) return null;
 
   return (
     <div className="absolute top-12 left-1/2 -translate-x-1/2 z-30 w-auto max-w-2xl px-4 py-2 bg-[#0c121e]/90 border border-emerald-500/30 rounded-lg shadow-[0_4px_24px_rgba(16,185,129,0.15)] backdrop-blur-md text-xs font-mono text-slate-300 animate-in fade-in slide-in-from-top-2 duration-300">

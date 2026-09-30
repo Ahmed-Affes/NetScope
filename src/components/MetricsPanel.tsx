@@ -72,18 +72,20 @@ export const MetricsPanel: React.FC = () => {
               <span className="text-slate-400 font-medium">GPU</span>
               <span className="text-slate-200 font-mono">
                 {metrics.gpuUsage !== null && metrics.gpuUsage !== undefined
-                  ? `${metrics.gpuUsage}% | ${metrics.gpuTemp ?? 49}°C`
+                  ? `${metrics.gpuUsage.toFixed(1)}%${metrics.gpuTemp ? ` | ${metrics.gpuTemp}°C` : ""}`
                   : "N/A"}
               </span>
             </div>
-            <div className="w-full bg-[#161d2a] h-1.5 rounded-full overflow-hidden">
-              <div
-                className="bg-cyan-400 h-full rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(34,211,238,0.6)]"
-                style={{
-                  width: `${Math.min(100, Math.max(0, metrics.gpuUsage ?? 0))}%`,
-                }}
-              />
-            </div>
+            {metrics.gpuUsage !== null && metrics.gpuUsage !== undefined && (
+              <div className="w-full bg-[#161d2a] h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="bg-cyan-400 h-full rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(34,211,238,0.6)]"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, metrics.gpuUsage))}%`,
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Disk */}
@@ -109,7 +111,9 @@ export const MetricsPanel: React.FC = () => {
           <div className="flex justify-between items-center pt-1 border-t border-white/[0.04] text-[11px]">
             <span className="text-slate-400 font-medium">Docker</span>
             <span className="text-purple-400 font-mono font-medium">
-              {metrics.dockerContainers} containers
+              {metrics.dockerContainers > 0
+                ? `${metrics.dockerContainers} active`
+                : "Not running"}
             </span>
           </div>
         </div>

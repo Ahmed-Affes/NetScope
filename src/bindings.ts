@@ -45,27 +45,17 @@ export interface SystemMetrics {
 export const commands = {
   async getAppInfo(): Promise<AppInfo> {
     if (isTauri()) return inv<AppInfo>("get_app_info");
-    return { name: "NetScope", version: "0.2.6", mode: "simulator", isElevated: false };
+    return { name: "NetScope", version: "0.2.6", mode: "live", isElevated: false };
   },
 
   async getSystemMetrics(): Promise<SystemMetrics> {
     if (isTauri()) return inv<SystemMetrics>("get_system_metrics");
     return {
-      cpuUsage: 6.4, ramUsedBytes: 78_600_000_000, ramTotalBytes: 121_700_000_000,
-      ramUsagePercent: 66.6, gpuUsage: 2.0, gpuTemp: 49.0,
-      diskFreeBytes: 1_571_100_000_000, diskTotalBytes: 3_560_000_000_000,
-      diskUsagePercent: 55.9, dockerContainers: 17,
+      cpuUsage: 0, ramUsedBytes: 0, ramTotalBytes: 0,
+      ramUsagePercent: 0, gpuUsage: null, gpuTemp: null,
+      diskFreeBytes: 0, diskTotalBytes: 0,
+      diskUsagePercent: 0, dockerContainers: 0,
     };
-  },
-
-  async triggerSimulation(scenario: string): Promise<string> {
-    if (isTauri()) return inv<string>("trigger_simulation", { scenario });
-    return `Simulation '${scenario}' triggered`;
-  },
-
-  async cleanSimulations(): Promise<string> {
-    if (isTauri()) return inv<string>("clean_simulations");
-    return "All simulations cleaned";
   },
 
   async setTrafficMode(mode: string): Promise<string> {

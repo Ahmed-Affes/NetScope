@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import { GraphEngine } from "../graph/GraphEngine";
-import { SimulatorSource } from "../sources/simulator";
 import { LiveSource } from "../sources/live";
 import { replayController } from "../sources/replay";
 import { TrafficSource } from "../types/graph";
@@ -19,7 +18,7 @@ export const GraphCanvas: React.FC = () => {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [nodeCount, setNodeCount] = useState(0);
 
-  const { selectNode, selectLink, applyDelta, layoutMode, trafficMode, setTrafficMode } =
+  const { selectNode, selectLink, applyDelta, layoutMode, trafficMode } =
     useNetScopeStore();
 
   // Initialize Engine & Source once or when trafficMode changes
@@ -40,14 +39,8 @@ export const GraphCanvas: React.FC = () => {
     });
     engineRef.current = engine;
 
-    let source: TrafficSource;
-    if (trafficMode === "live") {
-      source = new LiveSource();
-    } else if (trafficMode === "replay") {
-      source = replayController;
-    } else {
-      source = new SimulatorSource();
-    }
+    const source: TrafficSource =
+      trafficMode === "replay" ? replayController : new LiveSource();
     sourceRef.current = source;
 
     let lastThreatAnalysis = 0;
@@ -197,11 +190,9 @@ export const GraphCanvas: React.FC = () => {
           <div className="flex flex-col items-center gap-3 bg-[#0b1120]/80 backdrop-blur-sm border border-cyan-500/20 rounded-xl px-8 py-6 shadow-[0_0_40px_rgba(34,211,238,0.1)]">
             <Activity className="w-7 h-7 text-cyan-400 animate-pulse" />
             <p className="text-cyan-300 text-sm font-mono tracking-wider">
-              {trafficMode === "live"
-                ? "SCANNING SOCKETS & ARP TABLE..."
-                : trafficMode === "replay"
+              {trafficMode === "replay"
                 ? "LOADING SESSION..."
-                : "INITIALISING SIMULATION..."}
+                : "SCANNING PC SOCKETS & ARP TABLE..."}
             </p>
             <div className="flex gap-1">
               {[0, 1, 2, 3, 4].map((i) => (
@@ -241,10 +232,10 @@ export const GraphCanvas: React.FC = () => {
                 </div>
                 <div className="flex gap-2 pointer-events-auto mt-1">
                   <button
-                    onClick={() => setTrafficMode("simulator")}
+                    onClick={() => window.location.reload()}
                     className="px-3 py-1.5 text-xs rounded bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30 transition-colors"
                   >
-                    Try SIM mode instead
+                    Rescan Sockets
                   </button>
                 </div>
               </>
