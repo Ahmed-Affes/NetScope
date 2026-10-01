@@ -163,6 +163,16 @@ export const InspectorPanel: React.FC = () => {
     }
   }, [selectedNodeId, selectedNode?.pid, selectedNode?.label]);
 
+  // Track live rate history for selected node when elevated
+  useEffect(() => {
+    if (!isElevated || !selectedNode) {
+      setRateHistory([]);
+      return;
+    }
+    const currentRate = (selectedNode.rateIn || 0) + (selectedNode.rateOut || 0);
+    setRateHistory((prev) => [...prev.slice(-19), currentRate]);
+  }, [isElevated, selectedNode?.id, selectedNode?.rateIn, selectedNode?.rateOut]);
+
   if (!selectedNode && !selectedLink) return null;
 
   const handleClose = () => {
@@ -191,19 +201,19 @@ export const InspectorPanel: React.FC = () => {
   };
 
   const handleFocusPort = (port: number) => {
-    setActiveFilter(`port:${port}`);
-    setSearchQuery(`port:${port}`);
-  };
+    const filterKey = `port:${port}`;
+    setActiveFilter(filterKey);
+    setSearchQuery(filterKey);
 
-  // Track live rate history for selected node when elevated
-  useEffect(() => {
-    if (!isElevated || !selectedNode) {
-      setRateHistory([]);
-      return;
+    const portNode = Object.values(nodes).find(
+      (n) =>
+        n.id.includes(`:${port}`) ||
+        (n.kind === "port" && n.label.includes(String(port)))
+    );
+    if (portNode) {
+      selectNode(portNode.id);
     }
-    const currentRate = (selectedNode.rateIn || 0) + (selectedNode.rateOut || 0);
-    setRateHistory((prev) => [...prev.slice(-19), currentRate]);
-  }, [isElevated, selectedNode?.id, selectedNode?.rateIn, selectedNode?.rateOut]);
+  };
 
   const formatBytes = (bytes: number = 0) => {
     const val = typeof bytes === "number" && !isNaN(bytes) ? bytes : 0;
