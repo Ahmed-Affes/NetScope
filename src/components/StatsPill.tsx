@@ -2,11 +2,17 @@ import React from "react";
 import { useNetScopeStore } from "../store/useNetScopeStore";
 
 export const StatsPill: React.FC = () => {
-  const { nodes, links, alerts } = useNetScopeStore();
+  const { nodes, links, alerts, metrics } = useNetScopeStore();
 
   const nodeCount = Object.keys(nodes).length;
   const linkCount = Object.keys(links).length;
   const threatCount = alerts.filter((a) => !a.acked).length;
+
+  const formatRate = (bytesSec: number = 0) => {
+    if (bytesSec < 1024) return `${bytesSec.toFixed(0)} B/s`;
+    if (bytesSec < 1024 * 1024) return `${(bytesSec / 1024).toFixed(1)} KB/s`;
+    return `${(bytesSec / (1024 * 1024)).toFixed(1)} MB/s`;
+  };
 
   return (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
@@ -38,6 +44,15 @@ export const StatsPill: React.FC = () => {
             {threatCount}
           </span>
         </div>
+        {((metrics.networkRxRate ?? 0) > 0 || (metrics.networkTxRate ?? 0) > 0) && (
+          <>
+            <span className="text-white/20">|</span>
+            <div className="flex items-center gap-2 text-[10px]">
+              <span className="text-emerald-400 font-mono">↓ {formatRate(metrics.networkRxRate)}</span>
+              <span className="text-cyan-400 font-mono">↑ {formatRate(metrics.networkTxRate)}</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

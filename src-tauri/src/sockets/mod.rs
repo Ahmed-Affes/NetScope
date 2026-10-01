@@ -21,6 +21,7 @@ pub struct SocketEntry {
 
 pub struct SocketPoller {
     system: System,
+    networks: sysinfo::Networks,
     proc_cache: HashMap<u32, (Option<String>, Option<String>)>,
     last_proc_refresh: u64,
     last_arp_refresh: u64,
@@ -34,8 +35,10 @@ impl Default for SocketPoller {
     fn default() -> Self {
         let mut system = System::new_all();
         system.refresh_all();
+        let networks = sysinfo::Networks::new_with_refreshed_list();
         Self {
             system,
+            networks,
             proc_cache: HashMap::new(),
             last_proc_refresh: now_ms(),
             last_arp_refresh: 0,
@@ -338,6 +341,18 @@ impl SocketPoller {
         let mut current_nodes: HashMap<String, GraphNode> = HashMap::new();
         let mut current_links: HashMap<String, GraphLink> = HashMap::new();
 
+        self.networks.refresh(true);
+        let mut total_rx: u64 = 0;
+        let mut total_tx: u64 = 0;
+        let mut rate_rx: f64 = 0.0;
+        let mut rate_tx: f64 = 0.0;
+        for (_name, data) in &self.networks {
+            total_rx += data.total_received();
+            total_tx += data.total_transmitted();
+            rate_rx += data.received() as f64;
+            rate_tx += data.transmitted() as f64;
+        }
+
         // 1. Center Host node - represents the user's actual PC
         let host_id = "host:local".to_string();
         let pc_name = System::host_name().unwrap_or_else(|| "My PC".into());
@@ -356,10 +371,10 @@ impl SocketPoller {
                 org: None,
                 first_seen: now,
                 last_seen: now,
-                bytes_in: 0,
-                bytes_out: 0,
-                rate_in: 0.0,
-                rate_out: 0.0,
+                bytes_in: total_rx,
+                bytes_out: total_tx,
+                rate_in: rate_rx,
+                rate_out: rate_tx,
                 threat: None,
             },
         );
@@ -675,16 +690,64 @@ pub fn now_ms() -> u64 {
         .as_millis() as u64
 }
 
-fn classify_service(port: u16) -> Option<String> {
+pub fn classify_service(port: u16) -> Option<String> {
     match port {
+        20 | 21 => Some("ftp".into()),
         22 => Some("ssh".into()),
-        80 => Some("http".into()),
-        443 => Some("https".into()),
+        23 => Some("telnet".into()),
+        25 => Some("smtp".into()),
         53 => Some("dns".into()),
-        8080 => Some("http-alt".into()),
-        8443 => Some("c2-ssl".into()),
+        67 | 68 => Some("dhcp".into()),
+        69 => Some("tftp".into()),
+        80 => Some("http".into()),
+        110 => Some("pop3".into()),
+        123 => Some("ntp".into()),
+        137 | 138 | 139 => Some("netbios".into()),
+        143 => Some("imap".into()),
+        161 | 162 => Some("snmp".into()),
+        179 => Some("bgp".into()),
+        389 | 636 => Some("ldap".into()),
+        443 => Some("https".into()),
+        445 => Some("smb".into()),
+        465 | 587 => Some("smtp-ssl".into()),
+        514 => Some("syslog".into()),
+        853 => Some("dot-dns".into()),
+        993 => Some("imaps".into()),
+        995 => Some("pop3s".into()),
+        1194 => Some("openvpn".into()),
+        1433 => Some("mssql".into()),
+        1521 => Some("oracle".into()),
+        1883 | 8883 => Some("mqtt".into()),
+        1900 => Some("ssdp/upnp".into()),
+        2049 => Some("nfs".into()),
+        2375 | 2376 => Some("docker".into()),
+        3000 | 5000 | 5173 | 8000 | 8080 | 8081 | 8888 => Some("web-dev".into()),
+        3074 => Some("xbox-live".into()),
+        3306 => Some("mysql".into()),
+        3389 => Some("rdp".into()),
+        3478 | 19302 => Some("stun/webrtc".into()),
+        5060 | 5061 => Some("sip-voip".into()),
+        5222 | 5223 => Some("xmpp/push".into()),
+        5353 => Some("mdns".into()),
+        5355 => Some("llmnr".into()),
+        5432 => Some("postgres".into()),
+        5672 => Some("rabbitmq".into()),
+        5900 => Some("vnc".into()),
+        6379 => Some("redis".into()),
+        6443 => Some("k8s-api".into()),
+        6881..=6889 => Some("bittorrent".into()),
+        7474 | 7687 => Some("neo4j".into()),
+        8443 => Some("https-alt".into()),
+        9090 => Some("prometheus".into()),
+        9092 => Some("kafka".into()),
+        9200 | 9300 => Some("elasticsearch".into()),
+        9308 => Some("playstation".into()),
+        9987 => Some("teamspeak".into()),
         11434 => Some("ollama".into()),
-        7474 => Some("neo4j".into()),
+        25565 => Some("minecraft".into()),
+        27015..=27050 => Some("steam-game".into()),
+        41641 => Some("tailscale".into()),
+        51820 => Some("wireguard".into()),
         _ => None,
     }
 }

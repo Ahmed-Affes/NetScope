@@ -1,9 +1,10 @@
 use crate::model::{AppInfo, SystemMetrics};
 use std::sync::Mutex;
-use sysinfo::{Disks, System};
+use sysinfo::{Disks, Networks, System};
 
 // Lazy or static holder for system information to minimize overhead
 static SYSTEM_STATE: Mutex<Option<System>> = Mutex::new(None);
+static NETWORKS_STATE: Mutex<Option<Networks>> = Mutex::new(None);
 
 #[tauri::command]
 #[specta::specta]
@@ -72,6 +73,23 @@ pub fn get_system_metrics() -> SystemMetrics {
         })
         .count() as u32;
 
+    let (net_rx, net_tx, net_rx_rate, net_tx_rate) = {
+        let mut net_guard = NETWORKS_STATE.lock().unwrap();
+        let nets = net_guard.get_or_insert_with(Networks::new_with_refreshed_list);
+        nets.refresh(true);
+        let mut rx = 0u64;
+        let mut tx = 0u64;
+        let mut rx_rate = 0.0f64;
+        let mut tx_rate = 0.0f64;
+        for (_name, net) in nets.iter() {
+            rx += net.total_received();
+            tx += net.total_transmitted();
+            rx_rate += net.received() as f64;
+            tx_rate += net.transmitted() as f64;
+        }
+        (rx, tx, rx_rate, tx_rate)
+    };
+
     SystemMetrics {
         cpu_usage,
         ram_used_bytes: ram_used,
@@ -83,6 +101,10 @@ pub fn get_system_metrics() -> SystemMetrics {
         disk_total_bytes: disk_total,
         disk_usage_percent: disk_pct,
         docker_containers: docker_count,
+        network_rx_bytes: net_rx,
+        network_tx_bytes: net_tx,
+        network_rx_rate: net_rx_rate,
+        network_tx_rate: net_tx_rate,
     }
 }
 

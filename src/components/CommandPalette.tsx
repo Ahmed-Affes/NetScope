@@ -1,11 +1,15 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Command } from "cmdk";
 import { useNetScopeStore } from "../store/useNetScopeStore";
 import {
   Activity,
+  Globe,
   Layers,
+  Router,
   Search,
+  Server,
   Shield,
+  Wifi,
 } from "lucide-react";
 
 export const CommandPalette: React.FC = () => {
@@ -15,11 +19,19 @@ export const CommandPalette: React.FC = () => {
     closeCommandPalette,
     setActiveFilter,
     setLayoutMode,
+    nodes,
+    selectNode,
+    setSearchQuery,
   } = useNetScopeStore();
+
+  const [inputVal, setInputVal] = useState("");
 
   const setOpen = (val: boolean) => {
     if (val) openCommandPalette();
-    else closeCommandPalette();
+    else {
+      closeCommandPalette();
+      setInputVal("");
+    }
   };
 
   useEffect(() => {
@@ -45,6 +57,8 @@ export const CommandPalette: React.FC = () => {
 
   if (!isCommandPaletteOpen) return null;
 
+  const activeProcesses = Object.values(nodes).filter((n) => n.kind === "process");
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-black/60 backdrop-blur-sm"
@@ -58,7 +72,9 @@ export const CommandPalette: React.FC = () => {
           <div className="flex items-center px-3 border-b border-white/[0.08] bg-[#07090d]/60">
             <Search className="w-4 h-4 text-cyan-400 mr-2 shrink-0" />
             <Command.Input
-              placeholder="Type a command or filter (e.g. 'threat', 'port 22', 'radial')..."
+              value={inputVal}
+              onValueChange={setInputVal}
+              placeholder="Search any app, port, protocol, or command..."
               className="w-full py-3 bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none font-mono"
               autoFocus
             />
@@ -67,13 +83,105 @@ export const CommandPalette: React.FC = () => {
             </kbd>
           </div>
 
-          <Command.List className="max-h-72 overflow-y-auto p-2 text-xs space-y-1">
+          <Command.List className="max-h-80 overflow-y-auto p-2 text-xs space-y-1 custom-scrollbar">
             <Command.Empty className="py-6 text-center text-xs text-slate-500">
-              No matching actions found.
+              No matching actions or processes found.
             </Command.Empty>
 
-            {/* Quick Filters */}
-            <Command.Group heading="Filters" className="text-[10px] text-slate-400 uppercase tracking-wider px-2 py-1 font-bold">
+            {/* Direct Search query action */}
+            {inputVal.trim() && (
+              <Command.Group heading="Direct Filter" className="text-[10px] text-cyan-400 uppercase tracking-wider px-2 py-1 font-bold">
+                <Command.Item
+                  onSelect={() => {
+                    setSearchQuery(inputVal.trim());
+                    setOpen(false);
+                  }}
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 font-semibold"
+                >
+                  <Search className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Search topology for "{inputVal.trim()}"</span>
+                </Command.Item>
+              </Command.Group>
+            )}
+
+            {/* Active Running Apps & Processes */}
+            {activeProcesses.length > 0 && (
+              <Command.Group heading="Active Applications & Processes" className="text-[10px] text-fuchsia-400 uppercase tracking-wider px-2 py-1 font-bold">
+                {activeProcesses.slice(0, 15).map((proc) => (
+                  <Command.Item
+                    key={proc.id}
+                    value={`${proc.label} ${proc.exePath ?? ""} ${proc.pid ?? ""}`}
+                    onSelect={() => {
+                      selectNode(proc.id);
+                      setSearchQuery(proc.label);
+                      setOpen(false);
+                    }}
+                    className="flex items-center justify-between px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 font-mono"
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <Activity className="w-3.5 h-3.5 text-fuchsia-400 shrink-0" />
+                      <span className="truncate">{proc.label}</span>
+                    </div>
+                    {proc.pid && (
+                      <span className="text-[10px] text-slate-500 shrink-0">PID {proc.pid}</span>
+                    )}
+                  </Command.Item>
+                ))}
+              </Command.Group>
+            )}
+
+            {/* Traffic & Port Filters */}
+            <Command.Group heading="Traffic & Port Filters" className="text-[10px] text-slate-400 uppercase tracking-wider px-2 py-1 font-bold">
+              <Command.Item
+                onSelect={() => {
+                  setActiveFilter("port:443");
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
+              >
+                <Globe className="w-3.5 h-3.5 text-sky-400" />
+                <span>HTTPS Web Traffic (Port 443)</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => {
+                  setActiveFilter("port:53");
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
+              >
+                <Server className="w-3.5 h-3.5 text-amber-400" />
+                <span>DNS Query Traffic (Port 53)</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => {
+                  setActiveFilter("port:80");
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
+              >
+                <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                <span>HTTP Web Traffic (Port 80)</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => {
+                  setActiveFilter("port:22");
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
+              >
+                <Activity className="w-3.5 h-3.5 text-red-400" />
+                <span>SSH Connections (Port 22)</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => {
+                  setActiveFilter("proto:udp");
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
+              >
+                <Activity className="w-3.5 h-3.5 text-slate-400" />
+                <span>UDP Datagrams (Voice, DNS, WebRTC)</span>
+              </Command.Item>
               <Command.Item
                 onSelect={() => {
                   setActiveFilter("threat");
@@ -86,13 +194,23 @@ export const CommandPalette: React.FC = () => {
               </Command.Item>
               <Command.Item
                 onSelect={() => {
-                  setActiveFilter("port:22");
+                  setActiveFilter("gateway");
                   setOpen(false);
                 }}
                 className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
               >
-                <Activity className="w-3.5 h-3.5 text-amber-400" />
-                <span>Isolate SSH Connections (Port 22)</span>
+                <Router className="w-3.5 h-3.5 text-orange-400" />
+                <span>Gateway Router Infrastructure</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => {
+                  setActiveFilter("lan");
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
+              >
+                <Wifi className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Local LAN Devices on Wi-Fi</span>
               </Command.Item>
               <Command.Item
                 onSelect={() => {
@@ -163,8 +281,6 @@ export const CommandPalette: React.FC = () => {
                 <span>Check for NetScope Updates</span>
               </Command.Item>
             </Command.Group>
-
-
           </Command.List>
         </Command>
       </div>

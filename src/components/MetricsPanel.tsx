@@ -107,6 +107,20 @@ export const MetricsPanel: React.FC = () => {
             </div>
           </div>
 
+          {/* Network I/O (Real PC Throughput) */}
+          <div className="pt-1 border-t border-white/[0.04]">
+            <div className="flex justify-between items-center mb-1 text-[11px]">
+              <span className="text-slate-400 font-medium">Network I/O</span>
+              <span className="text-emerald-400 font-mono text-[10px]">
+                ↓ {((metrics.networkRxRate ?? 0) / 1024).toFixed(1)} KB/s | ↑ {((metrics.networkTxRate ?? 0) / 1024).toFixed(1)} KB/s
+              </span>
+            </div>
+            <div className="flex justify-between items-center text-[10px] text-slate-500 font-mono">
+              <span>Rx: {((metrics.networkRxBytes ?? 0) / (1024 * 1024)).toFixed(1)} MB</span>
+              <span>Tx: {((metrics.networkTxBytes ?? 0) / (1024 * 1024)).toFixed(1)} MB</span>
+            </div>
+          </div>
+
           {/* Docker */}
           <div className="flex justify-between items-center pt-1 border-t border-white/[0.04] text-[11px]">
             <span className="text-slate-400 font-medium">Docker</span>

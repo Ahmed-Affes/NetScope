@@ -111,6 +111,10 @@ export interface SystemMetrics {
   diskTotalBytes: number;
   diskUsagePercent: number;
   dockerContainers: number;
+  networkRxBytes?: number;
+  networkTxBytes?: number;
+  networkRxRate?: number;
+  networkTxRate?: number;
 }
 
 export interface TrafficSource {

@@ -55,34 +55,110 @@ function filterTopology(
     }
   }
 
-  // 2. Process searchQuery
+  // 2. Process searchQuery (Universal intelligent search for apps, ports, protocols, IPs)
   if (searchQuery && searchQuery.trim()) {
     const q = searchQuery.toLowerCase().trim();
-    if (q.startsWith("port:")) {
-      const portNum = parseInt(q.replace("port:", ""), 10);
-      if (!isNaN(portNum)) {
-        matchedLinks = matchedLinks.filter((l) => l.port === portNum);
-        const connectedIds = new Set(matchedLinks.flatMap((l) => [l.source, l.target]));
-        matchedNodes = matchedNodes.filter((n) => connectedIds.has(n.id));
+    const isPortExact = /^\d+$/.test(q) && parseInt(q, 10) > 0 && parseInt(q, 10) <= 65535;
+    const queryPort = isPortExact ? parseInt(q, 10) : q.startsWith("port:") ? parseInt(q.replace("port:", ""), 10) : null;
+    const queryProto = q.startsWith("proto:") ? q.replace("proto:", "").toLowerCase() : (q === "udp" || q === "tcp" || q === "icmp") ? q : null;
+
+    // Service aliases
+    const SERVICE_ALIASES: Record<string, number[]> = {
+      https: [443, 8443],
+      ssl: [443, 8443],
+      tls: [443, 8443, 853],
+      http: [80, 8080, 8000, 3000, 5000, 5173],
+      web: [80, 443, 8080, 3000, 5173],
+      dns: [53, 853],
+      ssh: [22],
+      ftp: [20, 21],
+      rdp: [3389],
+      smb: [445, 139],
+      webrtc: [3478, 19302],
+      stun: [3478, 19302],
+      voice: [3478, 19302, 5060, 5061],
+      steam: [27015, 27016, 27017, 27018, 27019, 27020, 27036],
+      minecraft: [25565],
+      mysql: [3306],
+      postgres: [5432],
+      redis: [6379],
+      wireguard: [51820],
+      tailscale: [41641],
+      ollama: [11434],
+      ai: [11434],
+      neo4j: [7474, 7687],
+      mdns: [5353],
+      dhcp: [67, 68],
+      ntp: [123],
+    };
+
+    const targetServicePorts = SERVICE_ALIASES[q] || [];
+
+    // Find links that directly match the query (port, service, protocol)
+    const directlyMatchedLinks = matchedLinks.filter((l) => {
+      if (queryPort !== null && l.port === queryPort) return true;
+      if (queryProto !== null && l.proto.toLowerCase() === queryProto) return true;
+      if (targetServicePorts.includes(l.port)) return true;
+      if (l.service && l.service.toLowerCase().includes(q)) return true;
+      return false;
+    });
+
+    // Find nodes that directly match the query
+    const directlyMatchedNodes = matchedNodes.filter((n) => {
+      // 1. Text & App names (e.g. "chrome", "discord", "ArmouryCrate", "steam")
+      if (n.label.toLowerCase().includes(q)) return true;
+      if (n.exePath && n.exePath.toLowerCase().includes(q)) return true;
+      if (n.ip && n.ip.toLowerCase().includes(q)) return true;
+      if (n.hostname && n.hostname.toLowerCase().includes(q)) return true;
+      if (n.country && n.country.toLowerCase().includes(q)) return true;
+      if (n.asn && n.asn.toLowerCase().includes(q)) return true;
+      if (n.org && n.org.toLowerCase().includes(q)) return true;
+      if (n.pid !== undefined && String(n.pid).includes(q)) return true;
+
+      // 2. Kind & Category aliases
+      if ((q === "router" || q === "gateway" || q === "modem") && n.kind === "gateway") return true;
+      if ((q === "pc" || q === "host" || q === "computer" || q === "laptop" || q === "desktop" || q === "me") && n.kind === "host") return true;
+      if ((q === "lan" || q === "device" || q === "devices" || q === "wifi") && n.kind === "lan") return true;
+      if ((q === "process" || q === "app" || q === "apps" || q === "program" || q === "exe") && n.kind === "process") return true;
+      if (q === "docker" && n.kind === "docker") return true;
+      if ((q === "internet" || q === "remote" || q === "external" || q === "wan") && n.kind === "internet") return true;
+      if ((q === "threat" || q === "threats" || q === "anomaly" || q === "suspicious" || q === "danger" || q === "warning") && (n.kind === "threat" || Boolean(n.threat))) return true;
+
+      return false;
+    });
+
+    // Combine connected context so the user gets the full picture:
+    // If a node matched (e.g. Chrome), include all links connected to it and their destination nodes!
+    // If a link matched (e.g. port 443), include the source & target nodes!
+    const matchedNodeIdSet = new Set(directlyMatchedNodes.map((n) => n.id));
+    const finalLinkSet = new Set<GraphLink>(directlyMatchedLinks);
+
+    // If nodes matched, add all links touching those nodes
+    for (const link of matchedLinks) {
+      if (matchedNodeIdSet.has(link.source) || matchedNodeIdSet.has(link.target)) {
+        finalLinkSet.add(link);
       }
-    } else if (q.startsWith("proto:")) {
-      const proto = q.replace("proto:", "").toLowerCase();
-      matchedLinks = matchedLinks.filter((l) => l.proto.toLowerCase() === proto);
-      const connectedIds = new Set(matchedLinks.flatMap((l) => [l.source, l.target]));
-      matchedNodes = matchedNodes.filter((n) => connectedIds.has(n.id));
-    } else {
-      matchedNodes = matchedNodes.filter(
-        (n) =>
-          n.label.toLowerCase().includes(q) ||
-          (n.ip && n.ip.toLowerCase().includes(q)) ||
-          n.kind.toLowerCase().includes(q) ||
-          (n.hostname && n.hostname.toLowerCase().includes(q))
-      );
-      const visibleIds = new Set(matchedNodes.map((n) => n.id));
-      matchedLinks = matchedLinks.filter(
-        (l) => visibleIds.has(l.source) && visibleIds.has(l.target)
-      );
     }
+
+    // Now collect all node IDs that are either directly matched OR endpoints of matched links
+    const finalNodeIdSet = new Set<string>(matchedNodeIdSet);
+    for (const link of finalLinkSet) {
+      finalNodeIdSet.add(link.source);
+      finalNodeIdSet.add(link.target);
+    }
+
+    // If any process or LAN device matched, also keep host:local for topological context
+    if (finalNodeIdSet.size > 0 && matchedNodes.some((n) => n.id === "host:local")) {
+      finalNodeIdSet.add("host:local");
+    }
+
+    const finalNodes = matchedNodes.filter((n) => finalNodeIdSet.has(n.id));
+    const visibleIds = new Set(finalNodes.map((n) => n.id));
+    const finalLinks = Array.from(finalLinkSet).filter(
+      (l) => visibleIds.has(l.source) && visibleIds.has(l.target)
+    );
+
+    return { filteredNodes: finalNodes, filteredLinks: finalLinks };
   }
 
   return { filteredNodes: matchedNodes, filteredLinks: matchedLinks };

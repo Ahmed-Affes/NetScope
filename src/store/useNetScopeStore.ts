@@ -42,6 +42,10 @@ const initialMetrics: SystemMetrics = {
   diskTotalBytes: 0,
   diskUsagePercent: 0,
   dockerContainers: 0,
+  networkRxBytes: 0,
+  networkTxBytes: 0,
+  networkRxRate: 0,
+  networkTxRate: 0,
 };
 
 export const useNetScopeStore = create<NetScopeState>((set) => ({

@@ -159,6 +159,10 @@ pub struct SystemMetrics {
     pub disk_total_bytes: u64,
     pub disk_usage_percent: f32,
     pub docker_containers: u32,
+    pub network_rx_bytes: u64,
+    pub network_tx_bytes: u64,
+    pub network_rx_rate: f64,
+    pub network_tx_rate: f64,
 }
 
 #[derive(Serialize, Deserialize, specta::Type, Clone, Debug)]

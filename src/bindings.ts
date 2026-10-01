@@ -40,6 +40,10 @@ export interface SystemMetrics {
   diskTotalBytes: number;
   diskUsagePercent: number;
   dockerContainers: number;
+  networkRxBytes: number;
+  networkTxBytes: number;
+  networkRxRate: number;
+  networkTxRate: number;
 }
 
 export const commands = {
@@ -55,6 +59,8 @@ export const commands = {
       ramUsagePercent: 0, gpuUsage: null, gpuTemp: null,
       diskFreeBytes: 0, diskTotalBytes: 0,
       diskUsagePercent: 0, dockerContainers: 0,
+      networkRxBytes: 0, networkTxBytes: 0,
+      networkRxRate: 0, networkTxRate: 0,
     };
   },
 
