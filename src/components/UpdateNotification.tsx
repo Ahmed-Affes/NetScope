@@ -42,8 +42,7 @@ export const UpdateNotification: React.FC = () => {
   useEffect(() => {
     // Only open when explicitly triggered by the user (TitleBar version badge or CommandPalette)
 
-    const handleTrigger = (e: Event) => {
-      const _customEvent = e as CustomEvent<{ force?: boolean }>;
+    const handleTrigger = () => {
       check(true, true);
     };
 

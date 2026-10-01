@@ -3,18 +3,12 @@ pub mod discovery;
 pub mod etw;
 
 use crate::events::DeltaPayload;
-use crate::model::{
-    GraphDelta, GraphLink, GraphNode, LinkUpdate, NodeKind, NodeUpdate, SocketInfo,
-};
+use crate::model::{GraphDelta, GraphLink, GraphNode, LinkUpdate, NodeKind, NodeUpdate, SocketInfo};
 use crate::threats::ThreatEngine;
-use classification::{
-    classify_ip_with_gateways, classify_service, discover_default_gateways, is_monitor_service,
-};
+use classification::{classify_ip_with_gateways, classify_service, discover_default_gateways, is_monitor_service};
 use discovery::{sweep_local_subnet, DnsResolver, LanDevice};
 use etw::EtwTrafficTracker;
-use netstat2::{
-    get_sockets_info, AddressFamilyFlags, ProtocolFlags, ProtocolSocketInfo, TcpState,
-};
+use netstat2::{get_sockets_info, AddressFamilyFlags, ProtocolFlags, ProtocolSocketInfo, TcpState};
 use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::{Arc, Mutex};
@@ -101,8 +95,7 @@ impl SocketPoller {
     pub fn refresh_processes_if_needed(&mut self) {
         let now = now_ms();
         if now.saturating_sub(self.last_proc_refresh) > 5_000 {
-            self.system
-                .refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+            self.system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
             self.last_proc_refresh = now;
         }
     }
@@ -225,9 +218,7 @@ impl SocketPoller {
                 "ESTABLISHED" => 1,
                 _ => 2,
             };
-            order_a
-                .cmp(&order_b)
-                .then_with(|| a.local_port.cmp(&b.local_port))
+            order_a.cmp(&order_b).then_with(|| a.local_port.cmp(&b.local_port))
         });
 
         entries
@@ -237,13 +228,13 @@ impl SocketPoller {
     /// Runs asynchronously in a background thread so the 1 Hz poller never stalls.
     pub fn scan_lan_neighbors(&mut self) -> Vec<LanDevice> {
         let now = now_ms();
-        let should_sweep = now.saturating_sub(self.last_arp_refresh) >= 180_000
-            || self.last_arp_refresh == 0;
+        let should_sweep = now.saturating_sub(self.last_arp_refresh) >= 180_000 || self.last_arp_refresh == 0;
 
         if should_sweep && !self.lan_sweep_in_progress.load(std::sync::atomic::Ordering::Relaxed) {
             if let Some(local_ip) = self.local_ipv4 {
                 self.last_arp_refresh = now;
-                self.lan_sweep_in_progress.store(true, std::sync::atomic::Ordering::Relaxed);
+                self.lan_sweep_in_progress
+                    .store(true, std::sync::atomic::Ordering::Relaxed);
                 let flag = self.lan_sweep_in_progress.clone();
                 let cache_arc = self.cached_lan_devices.clone();
                 let dns = self.dns_resolver.clone();
@@ -310,45 +301,41 @@ impl SocketPoller {
         // 2. Discover Real Default Gateway(s)
         for gw_ip in &self.cached_gateways {
             let gw_id = format!("gateway:{}", gw_ip);
-            current_nodes.entry(gw_id.clone()).or_insert_with(|| {
-                GraphNode {
-                    id: gw_id.clone(),
-                    kind: NodeKind::Gateway,
-                    label: format!("Gateway ({})", gw_ip),
-                    pid: None,
-                    exe_path: None,
-                    ip: Some(gw_ip.to_string()),
-                    hostname: Some("Default Gateway".into()),
-                    country: None,
-                    asn: None,
-                    org: None,
-                    first_seen: now,
-                    last_seen: now,
-                    bytes_in: 0,
-                    bytes_out: 0,
-                    rate_in: 0.0,
-                    rate_out: 0.0,
-                    threat: None,
-                }
+            current_nodes.entry(gw_id.clone()).or_insert_with(|| GraphNode {
+                id: gw_id.clone(),
+                kind: NodeKind::Gateway,
+                label: format!("Gateway ({})", gw_ip),
+                pid: None,
+                exe_path: None,
+                ip: Some(gw_ip.to_string()),
+                hostname: Some("Default Gateway".into()),
+                country: None,
+                asn: None,
+                org: None,
+                first_seen: now,
+                last_seen: now,
+                bytes_in: 0,
+                bytes_out: 0,
+                rate_in: 0.0,
+                rate_out: 0.0,
+                threat: None,
             });
 
             let gw_link_id = format!("link:{}->{}", host_id, gw_id);
-            current_links.entry(gw_link_id.clone()).or_insert_with(|| {
-                GraphLink {
-                    id: gw_link_id,
-                    source: host_id.clone(),
-                    target: gw_id,
-                    proto: "ip".into(),
-                    port: 0,
-                    service: Some("Routing Gateway".into()),
-                    bytes_in: 0,
-                    bytes_out: 0,
-                    rate: 0.0,
-                    packets: 0,
-                    state: Some("CONNECTED".into()),
-                    first_seen: now,
-                    last_seen: now,
-                }
+            current_links.entry(gw_link_id.clone()).or_insert_with(|| GraphLink {
+                id: gw_link_id,
+                source: host_id.clone(),
+                target: gw_id,
+                proto: "ip".into(),
+                port: 0,
+                service: Some("Routing Gateway".into()),
+                bytes_in: 0,
+                bytes_out: 0,
+                rate: 0.0,
+                packets: 0,
+                state: Some("CONNECTED".into()),
+                first_seen: now,
+                last_seen: now,
             });
         }
 
@@ -363,45 +350,41 @@ impl SocketPoller {
                 .map(|s| format!("{} ({})", s, dev.ip))
                 .unwrap_or_else(|| dev.ip.clone());
 
-            current_nodes.entry(dev_id.clone()).or_insert_with(|| {
-                GraphNode {
-                    id: dev_id.clone(),
-                    kind: NodeKind::Lan,
-                    label: dev_label,
-                    pid: None,
-                    exe_path: None,
-                    ip: Some(dev.ip.clone()),
-                    hostname: dev.hostname.clone(),
-                    country: None,
-                    asn: None,
-                    org: dev.vendor.clone(),
-                    first_seen: dev.last_seen,
-                    last_seen: now,
-                    bytes_in: 0,
-                    bytes_out: 0,
-                    rate_in: 0.0,
-                    rate_out: 0.0,
-                    threat: None,
-                }
+            current_nodes.entry(dev_id.clone()).or_insert_with(|| GraphNode {
+                id: dev_id.clone(),
+                kind: NodeKind::Lan,
+                label: dev_label,
+                pid: None,
+                exe_path: None,
+                ip: Some(dev.ip.clone()),
+                hostname: dev.hostname.clone(),
+                country: None,
+                asn: None,
+                org: dev.vendor.clone(),
+                first_seen: dev.last_seen,
+                last_seen: now,
+                bytes_in: 0,
+                bytes_out: 0,
+                rate_in: 0.0,
+                rate_out: 0.0,
+                threat: None,
             });
 
             let lan_link_id = format!("link:{}->{}", host_id, dev_id);
-            current_links.entry(lan_link_id.clone()).or_insert_with(|| {
-                GraphLink {
-                    id: lan_link_id,
-                    source: host_id.clone(),
-                    target: dev_id,
-                    proto: "arp".into(),
-                    port: 0,
-                    service: dev.vendor.clone().or_else(|| Some("LAN Host".into())),
-                    bytes_in: 0,
-                    bytes_out: 0,
-                    rate: 0.0,
-                    packets: 1,
-                    state: Some("REACHABLE".into()),
-                    first_seen: now,
-                    last_seen: now,
-                }
+            current_links.entry(lan_link_id.clone()).or_insert_with(|| GraphLink {
+                id: lan_link_id,
+                source: host_id.clone(),
+                target: dev_id,
+                proto: "arp".into(),
+                port: 0,
+                service: dev.vendor.clone().or_else(|| Some("LAN Host".into())),
+                bytes_in: 0,
+                bytes_out: 0,
+                rate: 0.0,
+                packets: 1,
+                state: Some("REACHABLE".into()),
+                first_seen: now,
+                last_seen: now,
             });
         }
 
@@ -457,26 +440,24 @@ impl SocketPoller {
             };
 
             // Process node
-            current_nodes.entry(proc_id.clone()).or_insert_with(|| {
-                GraphNode {
-                    id: proc_id.clone(),
-                    kind: NodeKind::Process,
-                    label: proc_label.clone(),
-                    pid: entry.pid,
-                    exe_path: entry.exe_path.clone(),
-                    ip: Some(entry.local_ip.clone()),
-                    hostname: None,
-                    country: None,
-                    asn: None,
-                    org: None,
-                    first_seen: now,
-                    last_seen: now,
-                    bytes_in,
-                    bytes_out,
-                    rate_in,
-                    rate_out,
-                    threat: None,
-                }
+            current_nodes.entry(proc_id.clone()).or_insert_with(|| GraphNode {
+                id: proc_id.clone(),
+                kind: NodeKind::Process,
+                label: proc_label.clone(),
+                pid: entry.pid,
+                exe_path: entry.exe_path.clone(),
+                ip: Some(entry.local_ip.clone()),
+                hostname: None,
+                country: None,
+                asn: None,
+                org: None,
+                first_seen: now,
+                last_seen: now,
+                bytes_in,
+                bytes_out,
+                rate_in,
+                rate_out,
+                threat: None,
             });
 
             // Link host -> process
@@ -517,26 +498,24 @@ impl SocketPoller {
                     NodeKind::Port
                 };
 
-                current_nodes.entry(service_id.clone()).or_insert_with(|| {
-                    GraphNode {
-                        id: service_id.clone(),
-                        kind: node_kind,
-                        label: service_label,
-                        pid: entry.pid,
-                        exe_path: entry.exe_path.clone(),
-                        ip: Some(entry.local_ip.clone()),
-                        hostname: None,
-                        country: None,
-                        asn: None,
-                        org: None,
-                        first_seen: now,
-                        last_seen: now,
-                        bytes_in: 0,
-                        bytes_out: 0,
-                        rate_in: 0.0,
-                        rate_out: 0.0,
-                        threat: None,
-                    }
+                current_nodes.entry(service_id.clone()).or_insert_with(|| GraphNode {
+                    id: service_id.clone(),
+                    kind: node_kind,
+                    label: service_label,
+                    pid: entry.pid,
+                    exe_path: entry.exe_path.clone(),
+                    ip: Some(entry.local_ip.clone()),
+                    hostname: None,
+                    country: None,
+                    asn: None,
+                    org: None,
+                    first_seen: now,
+                    last_seen: now,
+                    bytes_in: 0,
+                    bytes_out: 0,
+                    rate_in: 0.0,
+                    rate_out: 0.0,
+                    threat: None,
                 });
 
                 // Link process -> service node
@@ -579,49 +558,45 @@ impl SocketPoller {
                         .map(|s| format!("{} (: {})", s, entry.remote_port))
                         .unwrap_or_else(|| format!(":{}", entry.remote_port));
 
-                    current_nodes.entry(fallback_id.clone()).or_insert_with(|| {
-                        GraphNode {
-                            id: fallback_id.clone(),
-                            kind: NodeKind::Port,
-                            label: s_label,
-                            pid: None,
-                            exe_path: None,
-                            ip: Some(entry.remote_ip.clone()),
-                            hostname: Some("localhost".into()),
-                            country: None,
-                            asn: None,
-                            org: None,
-                            first_seen: now,
-                            last_seen: now,
-                            bytes_in: 0,
-                            bytes_out: 0,
-                            rate_in: 0.0,
-                            rate_out: 0.0,
-                            threat: None,
-                        }
+                    current_nodes.entry(fallback_id.clone()).or_insert_with(|| GraphNode {
+                        id: fallback_id.clone(),
+                        kind: NodeKind::Port,
+                        label: s_label,
+                        pid: None,
+                        exe_path: None,
+                        ip: Some(entry.remote_ip.clone()),
+                        hostname: Some("localhost".into()),
+                        country: None,
+                        asn: None,
+                        org: None,
+                        first_seen: now,
+                        last_seen: now,
+                        bytes_in: 0,
+                        bytes_out: 0,
+                        rate_in: 0.0,
+                        rate_out: 0.0,
+                        threat: None,
                     });
                     fallback_id
                 };
 
                 let local_link_id = format!("link:{}->{}", proc_id, target_node_id);
                 let s_remote = classify_service(entry.remote_port);
-                current_links
-                    .entry(local_link_id.clone())
-                    .or_insert_with(|| GraphLink {
-                        id: local_link_id,
-                        source: proc_id.clone(),
-                        target: target_node_id,
-                        proto: entry.proto.clone(),
-                        port: entry.remote_port,
-                        service: s_remote,
-                        bytes_in,
-                        bytes_out,
-                        rate: rate_in + rate_out,
-                        packets: 0,
-                        state: Some(entry.state.clone()),
-                        first_seen: now,
-                        last_seen: now,
-                    });
+                current_links.entry(local_link_id.clone()).or_insert_with(|| GraphLink {
+                    id: local_link_id,
+                    source: proc_id.clone(),
+                    target: target_node_id,
+                    proto: entry.proto.clone(),
+                    port: entry.remote_port,
+                    service: s_remote,
+                    bytes_in,
+                    bytes_out,
+                    rate: rate_in + rate_out,
+                    packets: 0,
+                    state: Some(entry.state.clone()),
+                    first_seen: now,
+                    last_seen: now,
+                });
             }
 
             // 8. Remote Endpoint Nodes for External / Public / Tailscale Traffic
@@ -632,36 +607,30 @@ impl SocketPoller {
                 && entry.remote_ip != "::"
             {
                 let remote_id = format!("ip:{}", entry.remote_ip);
-                let remote_kind =
-                    classify_ip_with_gateways(&entry.remote_ip, &self.cached_gateways);
+                let remote_kind = classify_ip_with_gateways(&entry.remote_ip, &self.cached_gateways);
 
                 // Async reverse DNS for remote endpoint
                 let resolved_hostname = self.dns_resolver.get_or_resolve(&entry.remote_ip);
-                let remote_label = resolved_hostname
-                    .as_deref()
-                    .unwrap_or(&entry.remote_ip)
-                    .to_string();
+                let remote_label = resolved_hostname.as_deref().unwrap_or(&entry.remote_ip).to_string();
 
-                current_nodes.entry(remote_id.clone()).or_insert_with(|| {
-                    GraphNode {
-                        id: remote_id.clone(),
-                        kind: remote_kind,
-                        label: remote_label,
-                        pid: None,
-                        exe_path: None,
-                        ip: Some(entry.remote_ip.clone()),
-                        hostname: resolved_hostname,
-                        country: None,
-                        asn: None,
-                        org: None,
-                        first_seen: now,
-                        last_seen: now,
-                        bytes_in,
-                        bytes_out,
-                        rate_in,
-                        rate_out,
-                        threat: None,
-                    }
+                current_nodes.entry(remote_id.clone()).or_insert_with(|| GraphNode {
+                    id: remote_id.clone(),
+                    kind: remote_kind,
+                    label: remote_label,
+                    pid: None,
+                    exe_path: None,
+                    ip: Some(entry.remote_ip.clone()),
+                    hostname: resolved_hostname,
+                    country: None,
+                    asn: None,
+                    org: None,
+                    first_seen: now,
+                    last_seen: now,
+                    bytes_in,
+                    bytes_out,
+                    rate_in,
+                    rate_out,
+                    threat: None,
                 });
 
                 let endpoint_link_id = format!("link:{}->{}", proc_id, remote_id);
@@ -689,7 +658,9 @@ impl SocketPoller {
         // 9. Run ThreatEngine
         let all_nodes_vec: Vec<GraphNode> = current_nodes.values().cloned().collect();
         let all_links_vec: Vec<GraphLink> = current_links.values().cloned().collect();
-        let alerts = self.threat_engine.evaluate(&all_nodes_vec, &all_links_vec, &listening_tuples);
+        let alerts = self
+            .threat_engine
+            .evaluate(&all_nodes_vec, &all_links_vec, &listening_tuples);
 
         // 10. Compute Delta
         let mut add_nodes = Vec::new();
@@ -806,10 +777,7 @@ impl SocketPoller {
 }
 
 /// Spawns the background poller thread pushing 1 Hz deltas via Tauri events.
-pub fn start_poller_thread(
-    app: AppHandle,
-    poller_mutex: Arc<Mutex<SocketPoller>>,
-) {
+pub fn start_poller_thread(app: AppHandle, poller_mutex: Arc<Mutex<SocketPoller>>) {
     std::thread::Builder::new()
         .name("netscope-poller".into())
         .spawn(move || {

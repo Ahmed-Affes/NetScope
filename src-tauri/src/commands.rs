@@ -86,13 +86,8 @@ pub fn relaunch_elevated() -> Result<String, String> {
             ) -> isize;
         }
 
-        let exe = std::env::current_exe()
-            .map_err(|e| format!("Failed to find current executable: {}", e))?;
-        let exe_w: Vec<u16> = exe
-            .as_os_str()
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect();
+        let exe = std::env::current_exe().map_err(|e| format!("Failed to find current executable: {}", e))?;
+        let exe_w: Vec<u16> = exe.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
         let op_w: Vec<u16> = std::ffi::OsStr::new("runas")
             .encode_wide()
             .chain(std::iter::once(0))
@@ -112,10 +107,7 @@ pub fn relaunch_elevated() -> Result<String, String> {
         if res > 32 {
             std::process::exit(0);
         } else {
-            Err(format!(
-                "UAC elevation was cancelled or failed with code {}",
-                res
-            ))
+            Err(format!("UAC elevation was cancelled or failed with code {}", res))
         }
     }
 
@@ -227,11 +219,7 @@ static SHARED_POLLER: std::sync::OnceLock<std::sync::Arc<Mutex<crate::sockets::S
 
 pub fn get_shared_poller() -> std::sync::Arc<Mutex<crate::sockets::SocketPoller>> {
     SHARED_POLLER
-        .get_or_init(|| {
-            std::sync::Arc::new(Mutex::new(crate::sockets::SocketPoller::new(
-                check_is_elevated(),
-            )))
-        })
+        .get_or_init(|| std::sync::Arc::new(Mutex::new(crate::sockets::SocketPoller::new(check_is_elevated()))))
         .clone()
 }
 
@@ -332,9 +320,10 @@ pub fn block_remote_ip(ip: String) -> Result<String, String> {
 #[tauri::command]
 #[specta::specta]
 pub fn unblock_remote_ip(ip: String) -> Result<String, String> {
-    let ip_addr = ip.trim().parse::<std::net::IpAddr>().map_err(|_| {
-        format!("Invalid IP address '{}'. Must be a single IPv4 or IPv6 address.", ip)
-    })?;
+    let ip_addr = ip
+        .trim()
+        .parse::<std::net::IpAddr>()
+        .map_err(|_| format!("Invalid IP address '{}'. Must be a single IPv4 or IPv6 address.", ip))?;
 
     #[cfg(target_os = "windows")]
     {
@@ -353,7 +342,8 @@ pub fn unblock_remote_ip(ip: String) -> Result<String, String> {
         match status {
             Ok(s) if s.success() => Ok(format!("Firewall rule '{}' removed", rule_name)),
             Ok(_) => Err(
-                "Failed to remove firewall rule. Administrator elevation may be required or rule does not exist.".into(),
+                "Failed to remove firewall rule. Administrator elevation may be required or rule does not exist."
+                    .into(),
             ),
             Err(e) => Err(format!("Failed to execute netsh: {}", e)),
         }
@@ -416,9 +406,9 @@ pub fn is_critical_process(pid: u32, name: &str) -> bool {
         return true;
     }
     let lower = name.trim().to_lowercase();
-    CRITICAL_PROCESSES.iter().any(|&crit| {
-        lower == crit || lower == crit.trim_end_matches(".exe")
-    })
+    CRITICAL_PROCESSES
+        .iter()
+        .any(|&crit| lower == crit || lower == crit.trim_end_matches(".exe"))
 }
 
 #[tauri::command]

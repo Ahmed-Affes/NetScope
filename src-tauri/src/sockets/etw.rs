@@ -52,10 +52,7 @@ impl EtwTrafficTracker {
                             if let Ok(schema) = schema_locator.event_schema(record) {
                                 let event_name = schema.task_name();
                                 let parser = ferrisetw::parser::Parser::create(record, &schema);
-                                let size: u64 = parser
-                                    .try_parse::<u32>("size")
-                                    .map(|s| s as u64)
-                                    .unwrap_or(0);
+                                let size: u64 = parser.try_parse::<u32>("size").map(|s| s as u64).unwrap_or(0);
 
                                 let mut guard = metrics_clone.lock().unwrap_or_else(|e| e.into_inner());
                                 let entry = guard.entry(pid).or_insert((0, 0, 0.0, 0.0));

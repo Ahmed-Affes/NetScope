@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNetScopeStore } from "../store/useNetScopeStore";
 import { ChevronDown, ChevronUp, Pin, PinOff, Plus, X } from "lucide-react";
 import { NodeKind } from "../types/graph";

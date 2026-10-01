@@ -26,9 +26,34 @@ function applyOverviewAggregation(
     return { nodes: nodesList, links: linksList };
   }
 
-  // In overview mode: aggregate remote internet endpoints
-  const internetNodes = nodesList.filter((n) => n.kind === "internet");
-  const nonInternetNodes = nodesList.filter((n) => n.kind !== "internet");
+  // In overview mode:
+  // 1. Collapse idle listening port nodes so the graph stays calm and clean, highlighting active traffic.
+  // Keep port nodes if they have active throughput, security threats, or active/established connections.
+  const activePortIds = new Set<string>();
+  for (const l of linksList) {
+    if (l.state === "ESTABLISHED" || (l.rate && l.rate > 0) || (l.bytesIn && l.bytesIn > 0) || (l.bytesOut && l.bytesOut > 0)) {
+      activePortIds.add(l.source);
+      activePortIds.add(l.target);
+    }
+  }
+
+  const nodesToProcess = nodesList.filter((n) => {
+    if (n.kind === "port") {
+      if (n.threat || activePortIds.has(n.id)) return true;
+      const rate = (n.rateIn || 0) + (n.rateOut || 0);
+      return rate > 0;
+    }
+    return true;
+  });
+
+  const validNodeIds = new Set(nodesToProcess.map((n) => n.id));
+  const candidateLinks = linksList.filter(
+    (l) => validNodeIds.has(l.source) && validNodeIds.has(l.target)
+  );
+
+  // 2. In overview mode: aggregate remote internet endpoints
+  const internetNodes = nodesToProcess.filter((n) => n.kind === "internet");
+  const nonInternetNodes = nodesToProcess.filter((n) => n.kind !== "internet");
 
   // Group internet nodes by org, root domain, or /24 subnet
   const groups = new Map<string, { title: string; nodes: GraphNode[] }>();
@@ -68,12 +93,13 @@ function applyOverviewAggregation(
 
   const finalNodes: GraphNode[] = [...nonInternetNodes];
   const remappedNodeId = new Map<string, string>(); // oldId -> clusterId
+  const singletons: GraphNode[] = [];
 
   for (const [key, grp] of groups.entries()) {
-    // If only 1 or 2 nodes in the group, or if user expanded this cluster, keep them individual
-    if (grp.nodes.length < 3 || expandedClusters.has(key)) {
+    // If user expanded this cluster, keep them individual
+    if (expandedClusters.has(key)) {
       finalNodes.push(...grp.nodes);
-    } else {
+    } else if (grp.nodes.length >= 2) {
       // Create aggregated cluster node
       const members = grp.nodes;
       for (const m of members) {
@@ -99,12 +125,43 @@ function applyOverviewAggregation(
         firstSeen: minFirstSeen,
         lastSeen: maxLastSeen,
       });
+    } else {
+      singletons.push(...grp.nodes);
     }
+  }
+
+  // If there are 2 or more solitary external endpoints, cluster them as "External Services"
+  const miscKey = "cluster:external:misc";
+  if (singletons.length >= 2 && !expandedClusters.has(miscKey)) {
+    for (const m of singletons) {
+      remappedNodeId.set(m.id, miscKey);
+    }
+    const totalBytesIn = singletons.reduce((sum, m) => sum + (m.bytesIn || 0), 0);
+    const totalBytesOut = singletons.reduce((sum, m) => sum + (m.bytesOut || 0), 0);
+    const totalRateIn = singletons.reduce((sum, m) => sum + (m.rateIn || 0), 0);
+    const totalRateOut = singletons.reduce((sum, m) => sum + (m.rateOut || 0), 0);
+    const minFirstSeen = Math.min(...singletons.map((m) => m.firstSeen || Date.now()));
+    const maxLastSeen = Math.max(...singletons.map((m) => m.lastSeen || Date.now()));
+
+    finalNodes.push({
+      id: miscKey,
+      kind: "internet",
+      label: `External Services (${singletons.length})`,
+      org: "Various Endpoints",
+      bytesIn: totalBytesIn,
+      bytesOut: totalBytesOut,
+      rateIn: totalRateIn,
+      rateOut: totalRateOut,
+      firstSeen: minFirstSeen,
+      lastSeen: maxLastSeen,
+    });
+  } else {
+    finalNodes.push(...singletons);
   }
 
   // Rewire and deduplicate links
   const linkKeyMap = new Map<string, GraphLink>();
-  for (const l of linksList) {
+  for (const l of candidateLinks) {
     const src = remappedNodeId.get(l.source) || l.source;
     const tgt = remappedNodeId.get(l.target) || l.target;
 
@@ -227,6 +284,7 @@ function filterTopology(
 
     // Find nodes that directly match the query
     const directlyMatchedNodes = matchedNodes.filter((n) => {
+      if (queryPort !== null && (n.label.includes(`:${queryPort}`) || n.id.endsWith(`:${queryPort}`) || (n.kind === "port" && n.label.includes(String(queryPort))))) return true;
       if (n.label.toLowerCase().includes(q)) return true;
       if (n.id.toLowerCase().includes(q)) return true;
       if (n.exePath && n.exePath.toLowerCase().includes(q)) return true;
@@ -294,7 +352,6 @@ export const GraphCanvas: React.FC = () => {
   const sourceRef = useRef<TrafficSource | null>(null);
 
   const [loadState, setLoadState] = useState<LoadState>("loading");
-  const [nodeCount, setNodeCount] = useState(0);
 
   const {
     selectNode,
@@ -308,7 +365,6 @@ export const GraphCanvas: React.FC = () => {
     activeFilter,
     searchQuery,
     graphVersion,
-    nodes,
     links,
   } = useNetScopeStore();
 
@@ -397,7 +453,6 @@ export const GraphCanvas: React.FC = () => {
           (currentStore.searchQuery && currentStore.searchQuery.trim())
       );
       const activeCount = hasConstraint ? aggregated.nodes.length : snapshot.nodes.length;
-      setNodeCount(activeCount);
       setLoadState(activeCount === 0 ? "empty" : "ok");
 
       // Subscribe to deltas
@@ -428,7 +483,6 @@ export const GraphCanvas: React.FC = () => {
             (storeNow.searchQuery && storeNow.searchQuery.trim())
         );
         const countNow = constraintNow ? nextAggregated.nodes.length : nodesList.length;
-        setNodeCount(countNow);
         setLoadState(countNow === 0 ? "empty" : "ok");
 
         engine.updateGraph(
@@ -475,7 +529,6 @@ export const GraphCanvas: React.FC = () => {
         activeFilter || (searchQuery && searchQuery.trim())
       );
       const activeCount = hasConstraint ? aggregated.nodes.length : nodesList.length;
-      setNodeCount(activeCount);
       setLoadState(activeCount === 0 ? "empty" : "ok");
 
       engineRef.current.updateGraph(aggregated.nodes, aggregated.links, layoutMode);

@@ -298,7 +298,7 @@ pub fn sweep_local_subnet(local_ipv4: Ipv4Addr) -> Vec<LanDevice> {
 
     let now = crate::sockets::now_ms();
 
-    for chunk in chunks {   
+    for chunk in chunks {
         let tx_clone = tx.clone();
         handles.push(std::thread::spawn(move || {
             for last in chunk {
@@ -307,14 +307,7 @@ pub fn sweep_local_subnet(local_ipv4: Ipv4Addr) -> Vec<LanDevice> {
                 // Win32 SendARP requires pMacAddr to point to at least two ULONGs (8 bytes)
                 let mut mac_buf = [0u32; 2];
                 let mut mac_len = 6u32;
-                let res = unsafe {
-                    SendARP(
-                        target_u32,
-                        local_u32,
-                        mac_buf.as_mut_ptr() as *mut u8,
-                        &mut mac_len,
-                    )
-                };
+                let res = unsafe { SendARP(target_u32, local_u32, mac_buf.as_mut_ptr() as *mut u8, &mut mac_len) };
                 if res == 0 && mac_len >= 6 {
                     let mac = unsafe { std::slice::from_raw_parts(mac_buf.as_ptr() as *const u8, 6) };
                     if mac != [0; 6] {

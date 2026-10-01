@@ -72,13 +72,25 @@ mod tests {
         // 3. Public IPs ending in .1 are NEVER Gateway (Acceptance Criteria 2)
         assert_eq!(classify_ip_with_gateways("1.1.1.1", &gateways), NodeKind::Internet);
         assert_eq!(classify_ip_with_gateways("8.8.8.1", &gateways), NodeKind::Internet);
-        assert_eq!(classify_ip_with_gateways("142.250.190.1", &gateways), NodeKind::Internet);
+        assert_eq!(
+            classify_ip_with_gateways("142.250.190.1", &gateways),
+            NodeKind::Internet
+        );
 
         // 4. Tailscale (100.64.0.0/10 and fd7a:115c:a1e0::/48)
         assert_eq!(classify_ip_with_gateways("100.64.0.1", &gateways), NodeKind::Tailscale);
-        assert_eq!(classify_ip_with_gateways("100.100.100.100", &gateways), NodeKind::Tailscale);
-        assert_eq!(classify_ip_with_gateways("100.127.255.254", &gateways), NodeKind::Tailscale);
-        assert_eq!(classify_ip_with_gateways("fd7a:115c:a1e0::1", &gateways), NodeKind::Tailscale);
+        assert_eq!(
+            classify_ip_with_gateways("100.100.100.100", &gateways),
+            NodeKind::Tailscale
+        );
+        assert_eq!(
+            classify_ip_with_gateways("100.127.255.254", &gateways),
+            NodeKind::Tailscale
+        );
+        assert_eq!(
+            classify_ip_with_gateways("fd7a:115c:a1e0::1", &gateways),
+            NodeKind::Tailscale
+        );
 
         // 5. Private LAN (RFC1918)
         assert_eq!(classify_ip_with_gateways("192.168.1.50", &gateways), NodeKind::Lan);
@@ -141,11 +153,20 @@ mod tests {
         assert_eq!(classify_ip_with_gateways("fe80::aabb:ccdd", &gateways), NodeKind::Lan);
 
         // Tailscale IPv6 (fd7a:115c:a1e0::/48)
-        assert_eq!(classify_ip_with_gateways("fd7a:115c:a1e0::1", &gateways), NodeKind::Tailscale);
+        assert_eq!(
+            classify_ip_with_gateways("fd7a:115c:a1e0::1", &gateways),
+            NodeKind::Tailscale
+        );
 
         // Public IPv6 (Cloudflare DNS 2606:4700:4700::1111, Google DNS 2001:4860:4860::8888)
-        assert_eq!(classify_ip_with_gateways("2606:4700:4700::1111", &gateways), NodeKind::Internet);
-        assert_eq!(classify_ip_with_gateways("2001:4860:4860::8888", &gateways), NodeKind::Internet);
+        assert_eq!(
+            classify_ip_with_gateways("2606:4700:4700::1111", &gateways),
+            NodeKind::Internet
+        );
+        assert_eq!(
+            classify_ip_with_gateways("2001:4860:4860::8888", &gateways),
+            NodeKind::Internet
+        );
     }
 
     #[test]
@@ -159,7 +180,10 @@ mod tests {
         let listener_proc_id = "proc:ollama.exe:8888".to_string();
         let service_id = format!("service:tcp:{}", listener_port);
         let friendly_service = classify_service(listener_port);
-        listeners.insert(listener_port, (service_id.clone(), listener_proc_id, friendly_service.clone()));
+        listeners.insert(
+            listener_port,
+            (service_id.clone(), listener_proc_id, friendly_service.clone()),
+        );
 
         // Simulated established connection from VSCode (pid 12345) to 127.0.0.1:11434
         let client_proc_id = "proc:code.exe:12345";

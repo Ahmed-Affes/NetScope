@@ -14,7 +14,8 @@ import { useNetScopeStore } from "../store/useNetScopeStore";
 import { Alert } from "../types/graph";
 
 export const AlertFeed: React.FC = () => {
-  const { alerts, selectNode, selectLink } = useNetScopeStore();
+  const { alerts, nodes, selectNode, selectLink, setActiveFilter, setSearchQuery, openPortInspector } =
+    useNetScopeStore();
   const [muted, setMuted] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
   const [ackedIds, setAckedIds] = useState<Set<string>>(new Set());
@@ -36,7 +37,47 @@ export const AlertFeed: React.FC = () => {
   };
 
   const handleFocus = (alert: Alert) => {
-    if (alert.nodeId) selectNode(alert.nodeId);
+    // 1. Clear any active filter/search so the alerted node is guaranteed visible
+    setActiveFilter(null);
+    setSearchQuery("");
+
+    // 2. Extract port from alert description or rule if present
+    const portMatch =
+      alert.description.match(/port\s+(\d+)/i) ||
+      alert.rule.match(/port\s+(\d+)/i);
+    const portNum = portMatch ? parseInt(portMatch[1], 10) : undefined;
+
+    // 3. For listening service alerts or sensitive port alerts, open the Port Inspector immediately
+    const isListeningRule =
+      alert.rule.toLowerCase().includes("listening") ||
+      alert.rule.toLowerCase().includes("port") ||
+      alert.description.toLowerCase().includes("listening port");
+
+    if (isListeningRule) {
+      openPortInspector("table");
+      if (portNum) {
+        setSearchQuery(String(portNum));
+      }
+    }
+
+    // 4. Select node on topology canvas if available
+    if (alert.nodeId && nodes[alert.nodeId]) {
+      selectNode(alert.nodeId);
+    } else if (portNum) {
+      const matchedNode = Object.values(nodes).find(
+        (n) =>
+          n.id.includes(`:${portNum}`) ||
+          (n.kind === "port" && n.label.includes(String(portNum)))
+      );
+      if (matchedNode) {
+        selectNode(matchedNode.id);
+      } else if (alert.nodeId) {
+        selectNode(alert.nodeId);
+      }
+    } else if (alert.nodeId) {
+      selectNode(alert.nodeId);
+    }
+
     if (alert.linkId) selectLink(alert.linkId);
   };
 

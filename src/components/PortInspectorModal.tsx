@@ -124,10 +124,12 @@ export const PortInspectorModal: React.FC = () => {
     const procSet = new Set<string>();
 
     for (const s of sockets) {
-      if (s.state.toUpperCase() === "LISTENING") listening++;
-      if (s.state.toUpperCase() === "ESTABLISHED") established++;
-      if (s.proto.toLowerCase() === "tcp") tcp++;
-      if (s.proto.toLowerCase() === "udp") udp++;
+      const stateUpper = (s.state || "").toUpperCase();
+      const protoLower = (s.proto || "").toLowerCase();
+      if (stateUpper === "LISTENING") listening++;
+      if (stateUpper === "ESTABLISHED") established++;
+      if (protoLower === "tcp") tcp++;
+      if (protoLower === "udp") udp++;
       if (s.processName) procSet.add(s.processName);
     }
 
@@ -147,10 +149,12 @@ export const PortInspectorModal: React.FC = () => {
 
     return sockets.filter((s) => {
       // Tab filter
-      if (activeTab === "listening" && s.state.toUpperCase() !== "LISTENING") return false;
-      if (activeTab === "established" && s.state.toUpperCase() !== "ESTABLISHED") return false;
-      if (activeTab === "tcp" && s.proto.toLowerCase() !== "tcp") return false;
-      if (activeTab === "udp" && s.proto.toLowerCase() !== "udp") return false;
+      const stateUpper = (s.state || "").toUpperCase();
+      const protoLower = (s.proto || "").toLowerCase();
+      if (activeTab === "listening" && stateUpper !== "LISTENING") return false;
+      if (activeTab === "established" && stateUpper !== "ESTABLISHED") return false;
+      if (activeTab === "tcp" && protoLower !== "tcp") return false;
+      if (activeTab === "udp" && protoLower !== "udp") return false;
       if (activeTab === "local") {
         const isLocal =
           s.localIp === "127.0.0.1" ||
@@ -206,19 +210,21 @@ export const PortInspectorModal: React.FC = () => {
 
       const pNode = procMap.get(procKey)!;
       pNode.totalSockets++;
-      if (s.state.toUpperCase() === "LISTENING") pNode.listeningCount++;
-      if (s.state.toUpperCase() === "ESTABLISHED") pNode.establishedCount++;
+      const sStateUpper = (s.state || "").toUpperCase();
+      const sProtoUpper = (s.proto || "TCP").toUpperCase();
+      if (sStateUpper === "LISTENING") pNode.listeningCount++;
+      if (sStateUpper === "ESTABLISHED") pNode.establishedCount++;
 
       // Port node grouping
-      const portKey = `${s.proto.toUpperCase()}:${s.localPort}`;
+      const portKey = `${sProtoUpper}:${s.localPort}`;
       let portNode = pNode.ports.find((p) => p.portKey === portKey);
       if (!portNode) {
         portNode = {
           portKey,
-          proto: s.proto.toUpperCase(),
+          proto: sProtoUpper,
           port: s.localPort,
           service: s.service,
-          state: s.state,
+          state: s.state || "UNKNOWN",
           endpoints: [],
         };
         pNode.ports.push(portNode);
@@ -314,12 +320,22 @@ export const PortInspectorModal: React.FC = () => {
     setActiveFilter(filterKey);
     setSearchQuery(filterKey);
 
-    // If node exists matching pid, select it
-    if (s.pid) {
-      const matchedNode = Object.values(nodes).find((n) => n.pid === s.pid);
-      if (matchedNode) {
-        selectNode(matchedNode.id);
-      }
+    // Look for matching node by pid or port or process name
+    const matchedNode =
+      (s.pid ? Object.values(nodes).find((n) => n.pid === s.pid) : null) ||
+      Object.values(nodes).find(
+        (n) =>
+          n.id.includes(`:${s.localPort}`) ||
+          (n.kind === "port" && n.label.includes(String(s.localPort)))
+      ) ||
+      (s.processName
+        ? Object.values(nodes).find(
+            (n) => n.label.toLowerCase() === s.processName!.toLowerCase()
+          )
+        : null);
+
+    if (matchedNode) {
+      selectNode(matchedNode.id);
     }
 
     closePortInspector();
@@ -622,7 +638,7 @@ export const PortInspectorModal: React.FC = () => {
                   </tr>
                 ) : (
                   filteredSockets.map((s, idx) => {
-                    const isListening = s.state.toUpperCase() === "LISTENING";
+                    const isListening = (s.state || "").toUpperCase() === "LISTENING";
 
                     return (
                       <tr
@@ -646,7 +662,7 @@ export const PortInspectorModal: React.FC = () => {
                         <td className="py-2 px-2">
                           <span
                             className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
-                              s.proto.toLowerCase() === "tcp"
+                              (s.proto || "").toLowerCase() === "tcp"
                                 ? "bg-sky-500/15 text-sky-300 border border-sky-500/30"
                                 : "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
                             }`}
@@ -694,12 +710,12 @@ export const PortInspectorModal: React.FC = () => {
                             className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
                               isListening
                                 ? "bg-cyan-500/10 text-cyan-300 border border-cyan-500/20"
-                                : s.state.toUpperCase() === "ESTABLISHED"
+                                : (s.state || "").toUpperCase() === "ESTABLISHED"
                                 ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
                                 : "bg-slate-700/30 text-slate-400 border border-slate-700/50"
                             }`}
                           >
-                            {s.state}
+                            {s.state || (isListening ? "LISTENING" : "UNKNOWN")}
                           </span>
                         </td>
 
@@ -933,12 +949,12 @@ export const PortInspectorModal: React.FC = () => {
 
                                     <span
                                       className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
-                                        port.state.toUpperCase() === "LISTENING"
+                                        (port.state || "").toUpperCase() === "LISTENING"
                                           ? "bg-cyan-500/10 text-cyan-300"
                                           : "bg-emerald-500/15 text-emerald-300"
                                       }`}
                                     >
-                                      {port.state}
+                                      {port.state || "LISTENING"}
                                     </span>
 
                                     <span className="text-[10px] text-slate-500 font-sans">
@@ -986,29 +1002,32 @@ export const PortInspectorModal: React.FC = () => {
                                 {/* Deep Endpoints Breakdown (Level 4) */}
                                 {isPortExpanded && (
                                   <div className="pl-6 space-y-1 py-1 text-[11px] text-slate-300 border-l border-white/[0.05] ml-2">
-                                    {port.endpoints.map((ep, epIdx) => (
-                                      <div
-                                        key={epIdx}
-                                        className="flex items-center justify-between p-1 rounded bg-black/30 border border-white/[0.03] text-[10px]"
-                                      >
-                                        <div className="flex items-center gap-2 truncate">
-                                          <span className="text-slate-400">Binding:</span>
-                                          <span className="text-slate-200">{ep.localIp}:{ep.localPort}</span>
-                                          <span className="text-slate-500">➔</span>
-                                          {ep.state.toUpperCase() === "LISTENING" ? (
-                                            <span className="text-cyan-400 italic">0.0.0.0:* (Listening)</span>
-                                          ) : (
-                                            <span className="text-emerald-300 font-bold">
-                                              {ep.remoteIp}:{ep.remotePort}
-                                            </span>
-                                          )}
-                                        </div>
+                                    {port.endpoints.map((ep, epIdx) => {
+                                      const isEpListening = (ep.state || "").toUpperCase() === "LISTENING";
+                                      return (
+                                        <div
+                                          key={epIdx}
+                                          className="flex items-center justify-between p-1 rounded bg-black/30 border border-white/[0.03] text-[10px]"
+                                        >
+                                          <div className="flex items-center gap-2 truncate">
+                                            <span className="text-slate-400">Binding:</span>
+                                            <span className="text-slate-200">{ep.localIp}:{ep.localPort}</span>
+                                            <span className="text-slate-500">➔</span>
+                                            {isEpListening ? (
+                                              <span className="text-cyan-400 italic">0.0.0.0:* (Listening)</span>
+                                            ) : (
+                                              <span className="text-emerald-300 font-bold">
+                                                {ep.remoteIp}:{ep.remotePort}
+                                              </span>
+                                            )}
+                                          </div>
 
-                                        <span className="px-1.5 py-0.2 rounded text-[9px] font-mono text-slate-400 bg-white/[0.03]">
-                                          {ep.state}
-                                        </span>
-                                      </div>
-                                    ))}
+                                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono text-slate-400 bg-white/[0.03]">
+                                            {ep.state || (isEpListening ? "LISTENING" : "UNKNOWN")}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>

@@ -15,7 +15,9 @@ export const Sparkline: React.FC<SparklineProps> = ({
   color = "#38bdf8",
   fillColor = "rgba(56, 189, 248, 0.15)",
 }) => {
-  if (!data || data.length === 0) {
+  const cleanData = (data || []).map((val) => (typeof val === "number" && !isNaN(val) ? val : 0));
+
+  if (cleanData.length === 0) {
     return (
       <div
         style={{ width, height }}
@@ -26,12 +28,12 @@ export const Sparkline: React.FC<SparklineProps> = ({
     );
   }
 
-  const max = Math.max(...data, 1);
-  const min = Math.min(...data, 0);
+  const max = Math.max(...cleanData, 1);
+  const min = Math.min(...cleanData, 0);
   const range = max - min || 1;
 
-  const points = data.map((val, idx) => {
-    const x = (idx / (data.length - 1 || 1)) * width;
+  const points = cleanData.map((val, idx) => {
+    const x = (idx / (cleanData.length - 1 || 1)) * width;
     const y = height - ((val - min) / range) * (height - 6) - 3;
     return `${x},${y}`;
   });

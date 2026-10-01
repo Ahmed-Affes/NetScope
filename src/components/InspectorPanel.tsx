@@ -29,13 +29,13 @@ function getPlainLanguageSummary(
   listeningPorts: string;
   connectionCount: number;
 } {
-  const nodeLinks = Object.values(links).filter(
-    (l) => l.source === node.id || l.target === node.id
+  const nodeLinks = Object.values(links || {}).filter(
+    (l) => l && (l.source === node.id || l.target === node.id)
   );
   const connectionCount = nodeLinks.length;
 
   let whatItIs: string;
-  const labelLower = node.label.toLowerCase();
+  const labelLower = (node.label || "").toLowerCase();
 
   if (node.kind === "host") {
     whatItIs = "Your local PC host interface managing network adapters and routing.";
@@ -53,14 +53,14 @@ function getPlainLanguageSummary(
     whatItIs = "Observability service providing telemetry or system monitoring.";
   } else if (node.kind === "threat") {
     whatItIs = "Security anomaly detected by NetScope threat inspection rules.";
-  } else if (node.id.startsWith("cluster:")) {
+  } else if (node.id?.startsWith("cluster:")) {
     whatItIs = `Aggregated group of external endpoints sharing ${node.org || "the same domain"}. Click to expand/collapse.`;
   } else if (node.kind === "internet") {
     whatItIs = node.org
       ? `Remote public internet server operated by ${node.org}.`
       : "Remote public internet host or web service.";
   } else if (node.kind === "port") {
-    whatItIs = `Active listening service socket bound to port ${node.label}.`;
+    whatItIs = `Active listening service socket bound to port ${node.label || ""}.`;
   } else {
     if (labelLower.includes("chrome") || labelLower.includes("msedge") || labelLower.includes("firefox")) {
       whatItIs = "Web browser actively fetching websites, APIs, and media streams.";
@@ -90,7 +90,7 @@ function getPlainLanguageSummary(
     const remoteDestinations = new Set<string>();
     for (const l of nodeLinks) {
       if (l.service) {
-        remoteDestinations.add(l.service.toUpperCase());
+        remoteDestinations.add(String(l.service).toUpperCase());
       } else if (l.port) {
         remoteDestinations.add(`:${l.port}`);
       }
@@ -102,11 +102,13 @@ function getPlainLanguageSummary(
   }
 
   let listeningPorts: string;
-  const boundListeners = procSockets.filter((s) => s.state?.toUpperCase() === "LISTEN");
+  const boundListeners = (procSockets || []).filter(
+    (s) => s.state?.toUpperCase() === "LISTEN" || s.state?.toUpperCase() === "LISTENING"
+  );
   if (boundListeners.length > 0) {
-    listeningPorts = `Listening on: ${boundListeners.map((s) => `:${s.localPort} (${s.proto})`).join(", ")}`;
+    listeningPorts = `Listening on: ${boundListeners.map((s) => `:${s.localPort} (${s.proto || "TCP"})`).join(", ")}`;
   } else if (node.kind === "port") {
-    listeningPorts = `Listening port ${node.label}`;
+    listeningPorts = `Listening port ${node.label || ""}`;
   } else if (node.kind === "process") {
     listeningPorts = "Client-only (no open listening server ports)";
   } else {
@@ -203,18 +205,20 @@ export const InspectorPanel: React.FC = () => {
     setRateHistory((prev) => [...prev.slice(-19), currentRate]);
   }, [isElevated, selectedNode?.id, selectedNode?.rateIn, selectedNode?.rateOut]);
 
-  const formatBytes = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024)
-      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  const formatBytes = (bytes: number = 0) => {
+    const val = typeof bytes === "number" && !isNaN(bytes) ? bytes : 0;
+    if (val < 1024) return `${val} B`;
+    if (val < 1024 * 1024) return `${(val / 1024).toFixed(1)} KB`;
+    if (val < 1024 * 1024 * 1024)
+      return `${(val / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(val / (1024 * 1024 * 1024)).toFixed(2)} GB`;
   };
 
-  const formatRate = (rate: number) => {
+  const formatRate = (rate: number = 0) => {
     if (!isElevated) return "—";
-    if (rate <= 0) return "0 B/s";
-    return `${formatBytes(rate)}/s`;
+    const val = typeof rate === "number" && !isNaN(rate) ? rate : 0;
+    if (val <= 0) return "0 B/s";
+    return `${formatBytes(val)}/s`;
   };
 
   return (
@@ -365,26 +369,26 @@ export const InspectorPanel: React.FC = () => {
                 onClick={() =>
                   requestKillProcess({
                     pid: selectedNode.pid!,
-                    name: selectedNode.label,
-                    ports: procSockets.map((s) => s.localPort),
+                    name: selectedNode.label || "Process",
+                    ports: (procSockets || []).map((s) => s.localPort),
                     exePath: selectedNode.exePath,
                   })
                 }
-                disabled={isCriticalProcess(selectedNode.pid, selectedNode.label)}
+                disabled={isCriticalProcess(selectedNode.pid, selectedNode.label || "")}
                 className={`w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded font-semibold text-[11px] transition-all shadow-sm ${
-                  isCriticalProcess(selectedNode.pid, selectedNode.label)
+                  isCriticalProcess(selectedNode.pid, selectedNode.label || "")
                     ? "bg-slate-800/40 border border-slate-700/40 text-slate-500 cursor-not-allowed opacity-60"
                     : "bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 hover:text-rose-200 cursor-pointer"
                 }`}
                 title={
-                  isCriticalProcess(selectedNode.pid, selectedNode.label)
-                    ? getCriticalProcessReason(selectedNode.pid, selectedNode.label)
+                  isCriticalProcess(selectedNode.pid, selectedNode.label || "")
+                    ? getCriticalProcessReason(selectedNode.pid, selectedNode.label || "")
                     : "Terminate process directly from NetScope with safety verification"
                 }
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>
-                  {isCriticalProcess(selectedNode.pid, selectedNode.label)
+                  {isCriticalProcess(selectedNode.pid, selectedNode.label || "")
                     ? "Protected System Process"
                     : "End Process (Kill Task)"}
                 </span>
@@ -393,7 +397,7 @@ export const InspectorPanel: React.FC = () => {
           )}
 
           {/* Active Sockets & Ports Tree for this Process */}
-          {procSockets.length > 0 && (
+          {(procSockets || []).length > 0 && (
             <div className="p-2.5 rounded bg-white/[0.02] border border-white/[0.04] space-y-2">
               <div className="flex items-center justify-between text-[10px]">
                 <span className="text-cyan-400 font-semibold uppercase tracking-wider flex items-center gap-1">
@@ -411,14 +415,14 @@ export const InspectorPanel: React.FC = () => {
                   >
                     <div className="flex items-center gap-1.5 truncate pr-1">
                       <span className="px-1 py-0.2 rounded text-[8px] font-bold uppercase bg-white/[0.06] text-slate-300">
-                        {s.proto}
+                        {s.proto || "TCP"}
                       </span>
                       <span className="text-cyan-300 font-bold">:{s.localPort}</span>
                       {s.service && (
                         <span className="text-slate-400 text-[9px]">({s.service})</span>
                       )}
                       <span className="text-[9px] text-slate-500 truncate">
-                        {s.state}
+                        {s.state || "UNKNOWN"}
                       </span>
                     </div>
 
@@ -467,14 +471,14 @@ export const InspectorPanel: React.FC = () => {
               <span className="text-slate-400">Total In / Out:</span>
               <span className="font-mono text-slate-200">
                 {isElevated
-                  ? `${formatBytes(selectedNode.bytesIn)} / ${formatBytes(selectedNode.bytesOut)}`
+                  ? `${formatBytes(selectedNode.bytesIn || 0)} / ${formatBytes(selectedNode.bytesOut || 0)}`
                   : "—"}
               </span>
             </div>
             <div className="flex justify-between items-center text-[11px]">
               <span className="text-slate-400">Live Rate:</span>
               <span className="font-mono text-cyan-400 font-semibold">
-                {formatRate(selectedNode.rateIn + selectedNode.rateOut)}
+                {formatRate((selectedNode.rateIn || 0) + (selectedNode.rateOut || 0))}
               </span>
             </div>
 
@@ -484,7 +488,11 @@ export const InspectorPanel: React.FC = () => {
                   Throughput Activity (Live ETW)
                 </span>
                 <Sparkline
-                  data={rateHistory.length > 1 ? rateHistory : [0, selectedNode.rateIn + selectedNode.rateOut]}
+                  data={
+                    rateHistory.length > 1
+                      ? rateHistory
+                      : [0, (selectedNode.rateIn || 0) + (selectedNode.rateOut || 0)]
+                  }
                   width={320}
                   height={38}
                   color="#22d3ee"
@@ -520,13 +528,15 @@ export const InspectorPanel: React.FC = () => {
             <div className="p-2.5 rounded bg-red-500/10 border border-red-500/30 space-y-1">
               <div className="flex items-center gap-1.5 text-red-400 font-bold text-[11px]">
                 <Shield className="w-3.5 h-3.5" />
-                <span>THREAT DETECTED ({selectedNode.threat.severity.toUpperCase()})</span>
+                <span>THREAT DETECTED ({String(selectedNode.threat.severity || "warning").toUpperCase()})</span>
               </div>
-              <ul className="text-[10px] text-red-300 list-disc list-inside">
-                {selectedNode.threat.reasons.map((r, i) => (
-                  <li key={i}>{r}</li>
-                ))}
-              </ul>
+              {Array.isArray(selectedNode.threat.reasons) && (
+                <ul className="text-[10px] text-red-300 list-disc list-inside">
+                  {selectedNode.threat.reasons.map((r, i) => (
+                    <li key={i}>{r}</li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
@@ -594,7 +604,7 @@ export const InspectorPanel: React.FC = () => {
               Connection
             </div>
             <div className="text-sm font-bold text-slate-100 font-mono">
-              Port {selectedLink.port} ({selectedLink.service ?? selectedLink.proto.toUpperCase()})
+              Port {selectedLink.port} ({selectedLink.service ?? String(selectedLink.proto || "TCP").toUpperCase()})
             </div>
           </div>
 
@@ -602,12 +612,12 @@ export const InspectorPanel: React.FC = () => {
             <div className="p-2 rounded bg-white/[0.02] border border-white/[0.04]">
               <span className="text-slate-400 block text-[9px] uppercase font-medium">Protocol</span>
               <span className="font-semibold text-cyan-400 uppercase text-[10px]">
-                {selectedLink.proto}
+                {selectedLink.proto || "TCP"}
               </span>
             </div>
             <div className="p-2 rounded bg-white/[0.02] border border-white/[0.04]">
               <span className="text-slate-400 block text-[9px] uppercase font-medium">Packets</span>
-              <span className="font-mono text-slate-200">{selectedLink.packets}</span>
+              <span className="font-mono text-slate-200">{selectedLink.packets || 0}</span>
             </div>
           </div>
 
@@ -615,13 +625,13 @@ export const InspectorPanel: React.FC = () => {
             <div className="flex justify-between items-center text-[11px]">
               <span className="text-slate-400">Total Volume:</span>
               <span className="font-mono text-slate-200">
-                {isElevated ? formatBytes(selectedLink.bytesIn + selectedLink.bytesOut) : "—"}
+                {isElevated ? formatBytes((selectedLink.bytesIn || 0) + (selectedLink.bytesOut || 0)) : "—"}
               </span>
             </div>
             <div className="flex justify-between items-center text-[11px]">
               <span className="text-slate-400">Throughput Rate:</span>
               <span className="font-mono text-cyan-400 font-semibold">
-                {formatRate(selectedLink.rate)}
+                {formatRate(selectedLink.rate || 0)}
               </span>
             </div>
           </div>

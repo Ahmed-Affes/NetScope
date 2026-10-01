@@ -30,15 +30,13 @@ impl ThreatEngine {
         let now = now_ms();
 
         // 1. Sensitive Ports Exposed on 0.0.0.0 or [::]
-        for (local_ip, port, proc_name_opt, _) in listening_sockets {
+        for (local_ip, port, proc_name_opt, pid_opt) in listening_sockets {
             let is_global = *local_ip == "0.0.0.0" || *local_ip == "::" || *local_ip == "*";
             if !is_global {
                 continue;
             }
 
-            let proc_name = proc_name_opt
-                .as_deref()
-                .unwrap_or("Unknown Process");
+            let proc_name = proc_name_opt.as_deref().unwrap_or("Unknown Process");
 
             let (service_name, severity, why_matters) = match *port {
                 3389 => (
@@ -92,12 +90,22 @@ impl ThreatEngine {
             let alert_id = format!("alert:exposed:{}:{}", port, proc_name);
             if !self.evaluated_alerts.contains(&alert_id) {
                 self.evaluated_alerts.insert(alert_id.clone());
+
+                let target_node_id = nodes
+                    .iter()
+                    .find(|n| {
+                        n.id.starts_with(&format!("service:tcp:{}", port))
+                            || n.id.starts_with(&format!("service:udp:{}", port))
+                    })
+                    .map(|n| n.id.clone())
+                    .or_else(|| pid_opt.and_then(|p| nodes.iter().find(|n| n.pid == Some(p)).map(|n| n.id.clone())));
+
                 new_alerts.push(Alert {
                     id: alert_id,
                     timestamp: now,
                     severity,
                     rule: "Sensitive Port Exposed Globally (0.0.0.0)".into(),
-                    node_id: None,
+                    node_id: target_node_id,
                     link_id: None,
                     description: format!(
                         "Process '{}' is listening on port {} ({}) on all interfaces (0.0.0.0 / ::). Why it matters: {}",
@@ -111,7 +119,12 @@ impl ThreatEngine {
         // 2. New Listening Service Appeared
         let mut current_listeners = HashSet::new();
         for (_, port, proc_name_opt, pid_opt) in listening_sockets {
-            let key = format!("{}:{}:{}", port, proc_name_opt.as_deref().unwrap_or(""), pid_opt.unwrap_or(0));
+            let key = format!(
+                "{}:{}:{}",
+                port,
+                proc_name_opt.as_deref().unwrap_or(""),
+                pid_opt.unwrap_or(0)
+            );
             current_listeners.insert((key.clone(), *port, proc_name_opt.clone()));
 
             if self.initial_baseline_done && !self.known_listeners.contains(&key) {
@@ -119,12 +132,24 @@ impl ThreatEngine {
                 let alert_id = format!("alert:newlistener:{}", key);
                 if !self.evaluated_alerts.contains(&alert_id) {
                     self.evaluated_alerts.insert(alert_id.clone());
+
+                    let target_node_id = nodes
+                        .iter()
+                        .find(|n| {
+                            n.id.starts_with(&format!("service:tcp:{}", port))
+                                || n.id.starts_with(&format!("service:udp:{}", port))
+                        })
+                        .map(|n| n.id.clone())
+                        .or_else(|| {
+                            pid_opt.and_then(|p| nodes.iter().find(|n| n.pid == Some(p)).map(|n| n.id.clone()))
+                        });
+
                     new_alerts.push(Alert {
                         id: alert_id,
                         timestamp: now,
                         severity: Severity::Low,
                         rule: "New Listening Service Detected".into(),
-                        node_id: None,
+                        node_id: target_node_id,
                         link_id: None,
                         description: format!(
                             "Process '{}' opened new listening port {}. Why it matters: Newly opened listening ports expand incoming attack surface.",

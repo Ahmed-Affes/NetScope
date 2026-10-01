@@ -162,14 +162,14 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
 
   selectNode: (id) =>
     set({
-      selectedNodeId: id,
-      selectedLinkId: id ? null : undefined,
+      selectedNodeId: id ?? null,
+      selectedLinkId: null,
     }),
 
   selectLink: (id) =>
     set({
-      selectedLinkId: id,
-      selectedNodeId: id ? null : undefined,
+      selectedLinkId: id ?? null,
+      selectedNodeId: null,
     }),
 
   toggleMetrics: () => set((s) => ({ isMetricsOpen: !s.isMetricsOpen })),
