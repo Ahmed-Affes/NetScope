@@ -518,22 +518,47 @@ export class GraphEngine {
       this.isDraggingCamera = false;
     });
 
-    // Zoom on wheel towards mouse point
-    canvas.addEventListener("wheel", (e) => {
-      e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
+    // Handle wheel: smooth mouse wheel zoom + natural touchpad pinch-to-zoom & two-finger pan
+    canvas.addEventListener(
+      "wheel",
+      (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
 
-      const factor = e.deltaY < 0 ? 1.12 : 0.89;
-      const newZoom = Math.min(Math.max(this.zoom * factor, 0.25), 3.0);
+        // 1. Touchpad Pinch-to-Zoom (browser sets e.ctrlKey = true on trackpad pinch gestures)
+        if (e.ctrlKey) {
+          const factor = Math.exp(-e.deltaY * 0.01);
+          const newZoom = Math.min(Math.max(this.zoom * factor, 0.2), 4.0);
+          this.panX = mouseX - (mouseX - this.panX) * (newZoom / this.zoom);
+          this.panY = mouseY - (mouseY - this.panY) * (newZoom / this.zoom);
+          this.zoom = newZoom;
+          this.applyTransform();
+          return;
+        }
 
-      this.panX = mouseX - (mouseX - this.panX) * (newZoom / this.zoom);
-      this.panY = mouseY - (mouseY - this.panY) * (newZoom / this.zoom);
-      this.zoom = newZoom;
+        // 2. Touchpad two-finger scroll / pan vs mouse wheel notch zoom
+        // On a mouse pad / touchpad, scrolling emits continuous small deltas with deltaMode === 0 and deltaX != 0 or |deltaY| < 40
+        const isTrackpadScroll = Math.abs(e.deltaX) > 0 || (Math.abs(e.deltaY) < 40 && e.deltaMode === 0);
 
-      this.applyTransform();
-    });
+        if (isTrackpadScroll) {
+          // Smoothly pan with touchpad two fingers
+          this.panX -= e.deltaX;
+          this.panY -= e.deltaY;
+          this.applyTransform();
+        } else {
+          // Standard mouse wheel zoom towards cursor
+          const factor = e.deltaY < 0 ? 1.15 : 0.87;
+          const newZoom = Math.min(Math.max(this.zoom * factor, 0.2), 4.0);
+          this.panX = mouseX - (mouseX - this.panX) * (newZoom / this.zoom);
+          this.panY = mouseY - (mouseY - this.panY) * (newZoom / this.zoom);
+          this.zoom = newZoom;
+          this.applyTransform();
+        }
+      },
+      { passive: false }
+    );
 
     window.addEventListener("resize", this.onResize);
   }
@@ -555,6 +580,40 @@ export class GraphEngine {
       });
     }
   };
+
+  public zoomIn(): void {
+    const width = this.containerElement.clientWidth || window.innerWidth || 1200;
+    const height = this.containerElement.clientHeight || window.innerHeight || 800;
+    const cx = width / 2;
+    const cy = height / 2;
+    const newZoom = Math.min(this.zoom * 1.25, 4.0);
+    this.panX = cx - (cx - this.panX) * (newZoom / this.zoom);
+    this.panY = cy - (cy - this.panY) * (newZoom / this.zoom);
+    this.zoom = newZoom;
+    this.applyTransform();
+  }
+
+  public zoomOut(): void {
+    const width = this.containerElement.clientWidth || window.innerWidth || 1200;
+    const height = this.containerElement.clientHeight || window.innerHeight || 800;
+    const cx = width / 2;
+    const cy = height / 2;
+    const newZoom = Math.max(this.zoom * 0.8, 0.2);
+    this.panX = cx - (cx - this.panX) * (newZoom / this.zoom);
+    this.panY = cy - (cy - this.panY) * (newZoom / this.zoom);
+    this.zoom = newZoom;
+    this.applyTransform();
+  }
+
+  public focusNode(nodeId: string): void {
+    const pos = this.nodePositions.get(nodeId);
+    if (!pos) return;
+    const width = this.containerElement.clientWidth || window.innerWidth || 1200;
+    const height = this.containerElement.clientHeight || window.innerHeight || 800;
+    this.panX = width / 2 - pos.x * this.zoom;
+    this.panY = height / 2 - pos.y * this.zoom;
+    this.applyTransform();
+  }
 
   public fitView(): void {
     this.zoom = 1.0;

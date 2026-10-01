@@ -14,7 +14,7 @@ import { useNetScopeStore } from "../store/useNetScopeStore";
 import { Alert } from "../types/graph";
 
 export const AlertFeed: React.FC = () => {
-  const { alerts, nodes, selectNode, selectLink, setActiveFilter, setSearchQuery, openPortInspector } =
+  const { alerts, nodes, selectNode, selectLink, setActiveFilter, setSearchQuery } =
     useNetScopeStore();
   const [muted, setMuted] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
@@ -41,39 +41,49 @@ export const AlertFeed: React.FC = () => {
     setActiveFilter(null);
     setSearchQuery("");
 
-    // 2. Extract port from alert description or rule if present
+    // 2. Direct node selection if alert.nodeId exists in current nodes
+    if (alert.nodeId && nodes[alert.nodeId]) {
+      selectNode(alert.nodeId);
+      if (alert.linkId) selectLink(alert.linkId);
+      return;
+    }
+
+    // 3. Extract port, PID, or process name from alert
     const portMatch =
       alert.description.match(/port\s+(\d+)/i) ||
       alert.rule.match(/port\s+(\d+)/i);
     const portNum = portMatch ? parseInt(portMatch[1], 10) : undefined;
 
-    // 3. For listening service alerts or sensitive port alerts, open the Port Inspector immediately
-    const isListeningRule =
-      alert.rule.toLowerCase().includes("listening") ||
-      alert.rule.toLowerCase().includes("port") ||
-      alert.description.toLowerCase().includes("listening port");
+    const pidMatch = alert.description.match(/PID\s+(\d+)/i);
+    const pidNum = pidMatch ? parseInt(pidMatch[1], 10) : undefined;
 
-    if (isListeningRule) {
-      openPortInspector("table");
-      if (portNum) {
-        setSearchQuery(String(portNum));
-      }
-    }
+    const procMatch = alert.description.match(/Process\s+'([^']+)'/i);
+    const procName = procMatch ? procMatch[1] : undefined;
 
-    // 4. Select node on topology canvas if available
-    if (alert.nodeId && nodes[alert.nodeId]) {
-      selectNode(alert.nodeId);
-    } else if (portNum) {
-      const matchedNode = Object.values(nodes).find(
-        (n) =>
-          n.id.includes(`:${portNum}`) ||
-          (n.kind === "port" && n.label.includes(String(portNum)))
-      );
-      if (matchedNode) {
-        selectNode(matchedNode.id);
-      } else if (alert.nodeId) {
-        selectNode(alert.nodeId);
-      }
+    // 4. Locate matching node on canvas: first port node, then parent process node
+    const allNodes = Object.values(nodes);
+    const matchedPortNode = portNum
+      ? allNodes.find(
+          (n) =>
+            n.id.includes(`:${portNum}`) ||
+            (n.kind === "port" && n.label.includes(String(portNum)))
+        )
+      : null;
+
+    const matchedProcNode =
+      (pidNum ? allNodes.find((n) => n.pid === pidNum) : null) ||
+      (procName
+        ? allNodes.find(
+            (n) =>
+              n.label.toLowerCase() === procName.toLowerCase() ||
+              (n.exePath && n.exePath.toLowerCase().endsWith(procName.toLowerCase()))
+          )
+        : null);
+
+    if (matchedPortNode) {
+      selectNode(matchedPortNode.id);
+    } else if (matchedProcNode) {
+      selectNode(matchedProcNode.id);
     } else if (alert.nodeId) {
       selectNode(alert.nodeId);
     }
@@ -121,8 +131,8 @@ export const AlertFeed: React.FC = () => {
 
       {/* Alert Cards */}
       {isExpanded && (
-        <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-          {activeAlerts.slice(0, 5).map((alert) => {
+        <div className="flex flex-col gap-1.5 max-h-80 overflow-y-auto pr-1 custom-scrollbar">
+          {activeAlerts.map((alert) => {
             const isHigh = alert.severity === "high";
             const borderCol = isHigh
               ? "border-rose-500/40 hover:border-rose-500/80 shadow-[0_0_15px_rgba(244,63,94,0.15)]"
@@ -161,9 +171,48 @@ export const AlertFeed: React.FC = () => {
                       </button>
                     </div>
 
-                    <p className="text-[11px] text-slate-300 font-sans mt-0.5 line-clamp-2 leading-relaxed">
-                      {alert.description}
-                    </p>
+                    {(() => {
+                      const hasRec = alert.description.includes("Recommendation:");
+                      const hasWhy = alert.description.includes("Why it matters:");
+
+                      if (hasRec) {
+                        const parts = alert.description.split("Recommendation:");
+                        const main = parts[0].trim();
+                        const rec = parts[1].trim();
+                        return (
+                          <div className="mt-1 space-y-1">
+                            <p className="text-[11px] text-slate-200 font-sans leading-relaxed">
+                              {main}
+                            </p>
+                            <div className="text-[10px] text-amber-300 font-sans bg-amber-500/10 border border-amber-500/25 rounded px-2 py-1 leading-snug">
+                              <span className="font-semibold text-amber-200">What to do:</span> {rec}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (hasWhy) {
+                        const parts = alert.description.split("Why it matters:");
+                        const main = parts[0].trim();
+                        const why = parts[1].trim();
+                        return (
+                          <div className="mt-1 space-y-1">
+                            <p className="text-[11px] text-slate-200 font-sans leading-relaxed">
+                              {main}
+                            </p>
+                            <p className="text-[10px] text-slate-400 font-sans leading-snug">
+                              <span className="font-semibold text-slate-300">Why:</span> {why}
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <p className="text-[11px] text-slate-300 font-sans mt-0.5 leading-relaxed">
+                          {alert.description}
+                        </p>
+                      );
+                    })()}
 
                     <div className="flex items-center justify-between mt-2 pt-1 border-t border-white/[0.04] text-[9px] font-mono text-slate-500">
                       <span className="flex items-center gap-1 text-cyan-400/90 group-hover:text-cyan-300">

@@ -108,7 +108,7 @@ impl ThreatEngine {
                     node_id: target_node_id,
                     link_id: None,
                     description: format!(
-                        "Process '{}' is listening on port {} ({}) on all interfaces (0.0.0.0 / ::). Why it matters: {}",
+                        "Process '{}' is listening on port {} ({}) on all interfaces (0.0.0.0 / ::). Why it matters: {}. Recommendation: If this service is for local use only, bind it to 127.0.0.1 or block it in Windows Defender Firewall.",
                         proc_name, port, service_name, why_matters
                     ),
                     acked: false,
@@ -129,6 +129,19 @@ impl ThreatEngine {
 
             if self.initial_baseline_done && !self.known_listeners.contains(&key) {
                 let proc_name = proc_name_opt.as_deref().unwrap_or("Unknown Process");
+
+                // Ignore Windows dynamic/ephemeral RPC ports (>= 49152) on system processes (svchost, System, lsass, etc.)
+                let is_system = pid_opt.map_or(false, |p| crate::commands::is_critical_process(p, proc_name))
+                    || crate::commands::is_critical_process(0, proc_name);
+                if *port >= 49152 && is_system {
+                    continue;
+                }
+
+                // Ignore common broadcast/multicast discovery services
+                if matches!(*port, 5353 | 5355 | 1900 | 67 | 68 | 123 | 137 | 138) {
+                    continue;
+                }
+
                 let alert_id = format!("alert:newlistener:{}", key);
                 if !self.evaluated_alerts.contains(&alert_id) {
                     self.evaluated_alerts.insert(alert_id.clone());
@@ -152,8 +165,8 @@ impl ThreatEngine {
                         node_id: target_node_id,
                         link_id: None,
                         description: format!(
-                            "Process '{}' opened new listening port {}. Why it matters: Newly opened listening ports expand incoming attack surface.",
-                            proc_name, port
+                            "Process '{}' (PID {}) started listening on port {}. Recommendation: If you did not start this service, inspect its process in NetScope and consider ending the task.",
+                            proc_name, pid_opt.unwrap_or(0), port
                         ),
                         acked: false,
                     });
@@ -208,7 +221,7 @@ impl ThreatEngine {
                     node_id: Some(link.target.clone()),
                     link_id: Some(link.id.clone()),
                     description: format!(
-                        "Outbound connection established on stratum mining port {}. Why it matters: Mining protocols utilize these ports to coordinate proof-of-work. Verify this is authorized.",
+                        "Outbound connection established on stratum mining port {}. Why it matters: Mining protocols utilize these ports to coordinate proof-of-work. Recommendation: Check if you intended to connect to a mining pool. If not, inspect and terminate the process.",
                         link.port
                     ),
                     acked: false,
@@ -232,7 +245,7 @@ impl ThreatEngine {
                             node_id: Some(link.target.clone()),
                             link_id: Some(link.id.clone()),
                             description: format!(
-                                "High sustained byte outflow ({:.1} MB/s) to {}. Why it matters: Unusually large continuous upload bursts can indicate unexpected data exfiltration.",
+                                "High sustained byte outflow ({:.1} MB/s) to {}. Why it matters: Unusually large continuous upload bursts can indicate data exfiltration. Recommendation: Check the sending application in the Inspector panel and terminate it if unrecognized.",
                                 link.rate / 1_000_000.0,
                                 link.target
                             ),
@@ -254,7 +267,7 @@ impl ThreatEngine {
                             node_id: Some(link.target.clone()),
                             link_id: Some(link.id.clone()),
                             description: format!(
-                                "High byte rate ({:.1} KB/s) on DNS port 53. Why it matters: Standard DNS requests are lightweight; sustained high rates indicate data tunneling over DNS.",
+                                "High byte rate ({:.1} KB/s) on DNS port 53. Why it matters: Standard DNS requests are lightweight; sustained high rates indicate data tunneling over DNS. Recommendation: Inspect the destination domain in the Inspector panel and terminate the offending background process if unrecognized.",
                                 link.rate / 1024.0
                             ),
                             acked: false,
@@ -278,7 +291,7 @@ impl ThreatEngine {
                         node_id: Some(node.id.clone()),
                         link_id: None,
                         description: format!(
-                            "Connection established to classified threat node '{}'. Why it matters: Communication with known hostile hosts or C2 infrastructure.",
+                            "Connection established to classified threat node '{}'. Why it matters: Communication with known hostile hosts or C2 infrastructure. Recommendation: Inspect the remote IP and terminate the associated local process immediately.",
                             node.label
                         ),
                         acked: false,

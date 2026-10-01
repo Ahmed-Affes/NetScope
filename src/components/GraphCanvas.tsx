@@ -3,7 +3,7 @@ import { GraphEngine } from "../graph/GraphEngine";
 import { LiveSource } from "../sources/live";
 import { TrafficSource, GraphNode, GraphLink } from "../types/graph";
 import { useNetScopeStore } from "../store/useNetScopeStore";
-import { Activity, Wifi, WifiOff } from "lucide-react";
+import { Activity, Wifi, WifiOff, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 
 type LoadState = "loading" | "ok" | "empty";
 
@@ -386,10 +386,13 @@ export const GraphCanvas: React.FC = () => {
       .slice(0, 4);
   }, [links]);
 
-  // Sync selectedNodeId with engine for LOD highlighting
+  // Sync selectedNodeId with engine for LOD highlighting and auto-centering camera
   useEffect(() => {
     if (engineRef.current) {
       engineRef.current.setSelectedNode(selectedNodeId);
+      if (selectedNodeId) {
+        engineRef.current.focusNode(selectedNodeId);
+      }
     }
   }, [selectedNodeId]);
 
@@ -641,6 +644,31 @@ export const GraphCanvas: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Floating Zoom / Pan Controls for Mouse Pad and Mouse users */}
+      <div className="absolute bottom-6 left-6 z-20 flex items-center gap-1 bg-[#0c1018]/90 border border-slate-700/60 rounded-lg p-1 shadow-[0_0_20px_rgba(0,0,0,0.6)] backdrop-blur-md">
+        <button
+          onClick={() => engineRef.current?.zoomIn()}
+          className="p-1.5 rounded hover:bg-white/[0.08] text-slate-300 hover:text-white transition-colors"
+          title="Zoom In (+)"
+        >
+          <ZoomIn className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => engineRef.current?.zoomOut()}
+          className="p-1.5 rounded hover:bg-white/[0.08] text-slate-300 hover:text-white transition-colors"
+          title="Zoom Out (-)"
+        >
+          <ZoomOut className="w-4 h-4" />
+        </button>
+        <div className="w-[1px] h-4 bg-white/[0.1] my-auto" />
+        <button
+          onClick={() => engineRef.current?.fitView()}
+          className="p-1.5 rounded hover:bg-white/[0.08] text-slate-300 hover:text-white transition-colors"
+          title="Reset View / Center"
+        >
+          <Maximize2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 };
