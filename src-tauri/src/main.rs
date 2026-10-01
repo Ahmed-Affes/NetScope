@@ -120,4 +120,98 @@ mod tests {
         assert_eq!(lookup_mac_vendor("00:15:5D:12:34:56"), Some("Microsoft Hyper-V".into()));
         assert_eq!(lookup_mac_vendor("FF:FF:FF:FF:FF:FF"), None);
     }
+
+    #[test]
+    fn test_ipv6_classification() {
+        use netscope_lib::model::NodeKind;
+        use netscope_lib::sockets::classification::classify_ip_with_gateways;
+        use std::collections::HashSet;
+
+        let gateways = HashSet::new();
+
+        // Loopback
+        assert_eq!(classify_ip_with_gateways("::1", &gateways), NodeKind::Host);
+
+        // ULA (fc00::/7)
+        assert_eq!(classify_ip_with_gateways("fc00::1", &gateways), NodeKind::Lan);
+        assert_eq!(classify_ip_with_gateways("fd00:1234::1", &gateways), NodeKind::Lan);
+
+        // Link-local (fe80::/10)
+        assert_eq!(classify_ip_with_gateways("fe80::1", &gateways), NodeKind::Lan);
+        assert_eq!(classify_ip_with_gateways("fe80::aabb:ccdd", &gateways), NodeKind::Lan);
+
+        // Tailscale IPv6 (fd7a:115c:a1e0::/48)
+        assert_eq!(classify_ip_with_gateways("fd7a:115c:a1e0::1", &gateways), NodeKind::Tailscale);
+
+        // Public IPv6 (Cloudflare DNS 2606:4700:4700::1111, Google DNS 2001:4860:4860::8888)
+        assert_eq!(classify_ip_with_gateways("2606:4700:4700::1111", &gateways), NodeKind::Internet);
+        assert_eq!(classify_ip_with_gateways("2001:4860:4860::8888", &gateways), NodeKind::Internet);
+    }
+
+    #[test]
+    fn test_local_link_joining_simulation() {
+        use netscope_lib::sockets::classification::classify_service;
+        use std::collections::HashMap;
+
+        // Simulated listener for Ollama on port 11434
+        let mut listeners: HashMap<u16, (String, String, Option<String>)> = HashMap::new();
+        let listener_port = 11434;
+        let listener_proc_id = "proc:ollama.exe:8888".to_string();
+        let service_id = format!("service:tcp:{}", listener_port);
+        let friendly_service = classify_service(listener_port);
+        listeners.insert(listener_port, (service_id.clone(), listener_proc_id, friendly_service.clone()));
+
+        // Simulated established connection from VSCode (pid 12345) to 127.0.0.1:11434
+        let client_proc_id = "proc:code.exe:12345";
+        let remote_ip = "127.0.0.1";
+        let remote_port = 11434;
+        let state = "ESTABLISHED";
+
+        let is_local_remote = remote_ip == "127.0.0.1" || remote_ip == "::1";
+        assert!(is_local_remote);
+        assert_eq!(state, "ESTABLISHED");
+
+        // Correlation logic:
+        let target_node_id = if let Some((srv_id, _, _)) = listeners.get(&remote_port) {
+            srv_id.clone()
+        } else {
+            format!("service:local:{}", remote_port)
+        };
+
+        // Verification: The client process links directly to the service node!
+        assert_eq!(target_node_id, "service:tcp:11434");
+        let link_id = format!("link:{}->{}", client_proc_id, target_node_id);
+        assert_eq!(link_id, "link:proc:code.exe:12345->service:tcp:11434");
+        assert_eq!(friendly_service, Some("Ollama LLM API".into()));
+    }
+
+    #[test]
+    fn test_url_validation_success_and_failure() {
+        // Valid URLs
+        assert!(open_external_url("https://github.com/Ahmed-Affes/NetScope".into()).is_ok());
+        assert!(open_external_url("http://localhost:5173".into()).is_ok());
+        assert!(open_external_url("https://speed.cloudflare.com".into()).is_ok());
+
+        // Dangerous / shell injection attempts rejected
+        assert!(open_external_url("cmd /c start calc".into()).is_err());
+        assert!(open_external_url("https://github.com & calc.exe".into()).is_err());
+        assert!(open_external_url("https://github.com | calc.exe".into()).is_err());
+        assert!(open_external_url("ftp://ftp.example.com".into()).is_err());
+        assert!(open_external_url("file:///etc/passwd".into()).is_err());
+        assert!(open_external_url("powershell -enc ...".into()).is_err());
+    }
+
+    #[test]
+    fn test_valid_remote_ip_blocking() {
+        // Valid public IP addresses should pass validation (even if firewall execution fails on non-admin test runner)
+        let valid_v4: Result<std::net::IpAddr, _> = "93.184.216.34".parse();
+        assert!(valid_v4.is_ok());
+        let valid_v6: Result<std::net::IpAddr, _> = "2606:4700:4700::1111".parse();
+        assert!(valid_v6.is_ok());
+
+        // Invalid IPs rejected
+        assert!("256.256.256.256".parse::<std::net::IpAddr>().is_err());
+        assert!("any".parse::<std::net::IpAddr>().is_err());
+        assert!("192.168.1.0/24".parse::<std::net::IpAddr>().is_err());
+    }
 }

@@ -7,53 +7,64 @@
 [![PixiJS](https://img.shields.io/badge/PixiJS-v8.7_WebGL-E72264?logo=pixijs&logoColor=white)](https://pixijs.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
 
-> **NetScope** is a high-performance desktop cyber-ops dashboard that visualizes, in real-time, every active connection on your machine as an interactive glowing 60 FPS graph.
+> **NetScope** is a high-performance Windows desktop application that visualizes everything your PC is communicating with in real time as an interactive, hardware-accelerated 60 FPS network topology graph. No terminal commands, no Task Manager, and no Windows network settings required.
 
 ---
 
-## ⚡ What You Can Do With NetScope
+## ⚡ What NetScope Does
 
-- **Live 60 FPS Force-Directed Graph:** High-performance WebGL rendering via PixiJS v8 outside the React render loop. Physics computed asynchronously in a Web Worker via `d3-force` streaming `Float32Array` buffers.
-- **Process & Hub Attribution:** Groups connections by owning process (`PID`), Docker containers, Tailscale mesh, LAN endpoints, and Internet hosts.
-- **Real-Time Threat Engine:** Detects Cobalt Strike C2 beaconing heartbeats, large-scale data exfiltration spikes, port scans, and Shannon domain entropy DGAs.
-- **ATK-SIM (Attack Simulator):** Built-in cyber attack simulator with 7 real-world attack vectors (SSH Brute Force, Exfiltration, DDoS Syn Flood, Nmap Scan, C2 Callback, Rogue Device, and Full Assault).
-- **Time Machine (Record & Replay):** In-memory 1-second rolling buckets flushed to cloud every 10 seconds. Scrub through past sessions, change speed (0.5x to 16x), and jump directly to traffic spikes.
-- **Remote HUD Viewer:** Stream your desktop's live network topology in real-time to your phone or tablet via Supabase Realtime and instant QR code pairing.
-- **Firewall Quarantine:** One-click endpoint quarantine via Windows Defender Firewall (`netsh`) or Linux `iptables`.
-- **Zero-Local-DB Guarantee:** Absolutely zero plaintext logs or SQLite database files written to disk. Ephemeral RAM memory or encrypted Supabase cloud storage only.
+- **Native Win32 Socket Telemetry:** Discovers all TCP/UDP connections, listening ports, states, PIDs, and process names directly using Windows native APIs (`GetExtendedTcpTable` / `GetExtendedUdpTable` via `netstat2`). Runs in a dedicated background thread streaming deltas via Tauri events.
+- **Local-to-Local Traffic Correlation:** Loopback (`127.0.0.1`, `::1`) connections are never dropped. Client processes (like VSCode, browser, or custom apps) connect directly to their corresponding local listening service nodes (e.g. `Ollama (11434)`, `Neo4j (7474/7687)`, `Vite (5173)`).
+- **Accurate Gateway & Node Classification:**
+  - **Gateway:** Determined exclusively from the active Windows routing table (`GetAdaptersAddresses` / `default-net`), never `.1` heuristics. `127.0.0.1` and public `.1` addresses (such as `1.1.1.1` or `8.8.8.1`) are never misclassified as gateways.
+  - **Tailscale:** Evaluated before other rules (`100.64.0.0/10` and `fd7a:115c:a1e0::/48`).
+  - **Docker:** Detected via default bridge subnets (`172.17.0.0/16`) and virtual network adapters.
+  - **LAN:** Discovered via RFC1918, IPv6 ULA, and link-local address spaces.
+  - **Monitor:** Observability and metrics services (Prometheus 9090, Grafana 3000, Node Exporter 9100, Netdata 19999, Zabbix).
+  - **Internet:** Public external servers and cloud providers.
+- **LAN Discovery & Offline Vendor Lookup:** Light, rate-limited Win32 `SendARP` subnet scanning paired with bundled offline MAC OUI vendor resolution without sending device identifiers over the network.
+- **Honest Traffic Metering (Tiered Visibility):**
+  - **Tier A (Standard User):** Displays connection counts, TCP states, and interface status. Shows `—` for unmeasured per-connection bandwidth (no fake numbers).
+  - **Tier B (Elevated Visibility):** One-click UAC prompt enables kernel ETW (`Microsoft-Windows-Kernel-Network`) tracking per-connection throughput in 1-second rolling buckets.
+- **Clean Overview vs All Aggregation:**
+  - **Overview Mode:** Collapses redundant cloud and CDN endpoints into neat organizational clusters (e.g. Cloudflare, Google, Amazon). Click any cluster to expand.
+  - **All Mode:** Shows every individual socket and IP node without aggregation.
+- **Level-of-Detail (LOD) Labels:** Labels are automatically optimized for clarity: visible for host, large, hovered, or selected nodes and when zoomed in; hidden for small nodes at default zoom to prevent canvas clutter.
+- **Dynamic Legend & Port Pinning:** Legend builds dynamically from live PC traffic, shows active connection counts, dims zero-count services, and allows pinning custom ports persisted in localStorage.
+- **Active Filter Recovery:** When a filter matches no traffic, NetScope displays currently active services with one-click alternatives instead of dead empty screens.
+- **Inspector & Guardrails:** Plain-language summary of what each node is, where it connects, and listening ports. Critical system processes (`System`, `csrss`, `lsass`, `svchost`, `winlogon`) are shielded from accidental termination.
+- **Hardened Security:** Zero `cmd.exe` shell execution, strict Content Security Policy (CSP), poison-safe Rust mutexes, and strict input validation for URLs and IP blocking.
 
 ---
 
-## 🛰️ Architecture Overview
+## 🏗️ Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              NETSCOPE DESKTOP                               │
-├───────────────────────────────┬─────────────────────────────────────────────┤
-│      TAURI 2 (RUST CORE)      │             REACT 19 + PIXIJS V8            │
-│  - Socket Poller (netstat/ss) │  - PixiJS v8 High-Perf Canvas (60 FPS)      │
-│  - Flow Aggregator (5-tuple)  │  - Web Worker d3-force Physics Simulation   │
-│  - Process Attribution (PID)  │  - Zustand State Store & Rolling Sparklines │
-│  - OS Firewall Rules (netsh)  │  - ATK-SIM Live Scenario Injector           │
-│  - Npcap / pcap Driver Bridge │  - Mobile Remote Viewer Modal (QR Code)     │
-└───────────────┬───────────────┴──────────────────────┬──────────────────────┘
-                │ IPC (Commands & Specta Events)       │
-                ▼                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          SUPABASE CLOUD PERSISTENCE                         │
-│  - User Auth & Device Inventory                                             │
-│  - In-Memory 1s Aggregation Buckets -> 10s Batch Chunks RPC                 │
-│  - Realtime Broadcast (Phone HUD Viewer)                                    │
-│  - Zero Local DB Rule (Zero disk leakage)                                   │
-└─────────────────────────────────────────────────────────────────────────────┘
+├────────────────────────────────────────┬────────────────────────────────────┤
+│           TAURI 2 (RUST CORE)          │        REACT 19 + PIXIJS V8        │
+│  - Native Win32 GetExtendedTcpTable    │  - PixiJS v8 60 FPS WebGL Canvas   │
+│  - Native Win32 GetExtendedUdpTable    │  - Web Worker d3-force Simulation  │
+│  - Routing Table Gateway Resolution    │  - Zustand State Store             │
+│  - Rate-limited SendARP LAN Discovery  │  - Dynamic Legend & Pinning        │
+│  - Kernel ETW Network Metering (Admin) │  - Plain-Language Node Inspector   │
+│  - Guarded Process Management          │  - Active Ports & Socket Inspector │
+│  - Win32 Firewall Isolation Commands   │  - Overview / All Clustered Views  │
+└────────────────────────────────────────┴────────────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Quickstart Guide: What To Do
+## 🚀 Building & Running Locally
 
-### 1. Run in Web Simulator Mode (Immediate 60 FPS Demo)
-You can run NetScope right away in your web browser without compiling any native Rust dependencies:
+### Prerequisites
+- [Node.js](https://nodejs.org) (v20 or v22)
+- [pnpm](https://pnpm.io) (`npm i -g pnpm`)
+- [Rust](https://rustup.rs) (stable)
+- Windows 10/11 (x64)
+
+### Development
 
 ```bash
 # Clone the repository
@@ -63,62 +74,36 @@ cd NetScope
 # Install dependencies
 pnpm install
 
-# Start Vite dev server
-pnpm dev
-```
-Open **[http://localhost:5173](http://localhost:5173)**. You will see the glowing cyber-ops dashboard, live traffic simulator, sparkline inspector, and ATK-SIM panel!
-
-### 2. Run Native Desktop App (Tauri 2 Shell)
-To run the full desktop shell with native OS socket table inspection:
-
-```bash
+# Run desktop app in development mode
 pnpm tauri dev
 ```
 
-### 3. Run Tests & Validation
+### Running Tests & Verification
+
 ```bash
-# Run Vitest unit tests (Store, Deltas)
+# Run frontend unit tests
 pnpm test
 
-# Typecheck and build production bundle
+# Build frontend production bundle
 pnpm build
+
+# Run Rust unit tests
+cargo test --manifest-path src-tauri/Cargo.toml
+
+# Run Rust linter
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 ```
 
 ---
 
-## ⚙️ Optional Supabase Configuration
+## 🔐 Security & Code Signing
 
-NetScope works **100% out of the box** without any configuration using an in-memory session buffer.
-
-If you wish to connect your own Supabase project for persistent cloud recordings and device sync:
-1. Create a project at [supabase.com](https://supabase.com).
-2. Execute the migration in `supabase/migrations/20260929000000_netscope_schema.sql` via the Supabase SQL Editor.
-3. Create a `.env` file in the project root:
-   ```env
-   VITE_SUPABASE_URL=https://your-project.supabase.co
-   VITE_SUPABASE_ANON_KEY=your-anon-key
-   ```
-4. Restart `pnpm dev`. Your recorded sessions will now sync to your cloud account!
+- For threat modeling and security policies, see [SECURITY.md](SECURITY.md).
+- For privacy principles and telemetry handling, see [PRIVACY.md](PRIVACY.md).
+- For instructions on setting up Authenticode and Tauri updater code signing, see [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## 📄 License
 
-| Shortcut | Action |
-| -------- | ------ |
-| `Ctrl + K` or `/` | Open Cyber Command Palette |
-| `1` | Switch to Force-Directed Layout |
-| `2` | Switch to Radial Orbit Layout |
-| `3` | Switch to Geographic Regional Layout |
-| `4` | Switch to 3D Isometric Layered Mode |
-| `Esc` | Deselect active node / link |
-
----
-
-## 🛡️ License & Policies
-
-- **License:** [MIT License](LICENSE)
-- **Privacy Policy:** [PRIVACY.md](PRIVACY.md)
-- **Security Policy:** [SECURITY.md](SECURITY.md)
-- **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
-- **Third-Party Licenses:** [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)
+NetScope is licensed under the [MIT License](LICENSE).

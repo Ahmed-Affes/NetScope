@@ -49,18 +49,25 @@ jobs:
           releaseBody: |
             ### NetScope Desktop Release
 
-            Real-time Windows network topology visualizer & cyber threat monitor.
+            Hardware-accelerated Windows network topology visualizer.
 
             #### Download & Install:
             - Download the `.exe` installer below and run it.
 
             #### What's included:
-            - Live PC socket table reader (processes, IPs, ports)
-            - ARP cache scanner (LAN gateway & device discovery)
-            - 60 FPS WebGL force-directed network graph (PixiJS v8)
-            - Real-time threat detection (SSH brute-force, C2 beacons, port scans)
-            - Session recording & replay with node drag positions
-            - ATK-SIM panel with 7 built-in cyber attack simulations
+            - Native Win32 TCP/UDP socket telemetry (processes, ports, states, PIDs)
+            - Local traffic correlation (client apps linked directly to local services like Ollama and Neo4j)
+            - Routing table gateway resolution (no `.1` heuristics)
+            - Rate-limited LAN discovery via Win32 `SendARP` and offline MAC OUI vendor lookup
+            - Overview vs All views with remote endpoint clustering
+            - Dynamic traffic legend with live connection counts and port pinning
+            - Plain-language process inspector with system process protection guardrails
+            - One-click endpoint firewall blocking via Windows Firewall
+            - Optional UAC elevation for kernel ETW per-connection bandwidth metering
+            - Hardened security with strict Content Security Policy and validated inputs
+
+            #### Code Signing:
+            - For instructions on verifying Authenticode signatures and configuring production certificates, see `docs/CODE_SIGNING.md`.
           releaseDraft: false
           prerelease: false
 

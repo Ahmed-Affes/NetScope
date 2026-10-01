@@ -1,36 +1,52 @@
-# NetScope Security Policy & Threat Modeling
+# NetScope Security Policy & Architecture
 
 ## Supported Versions
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
+| 1.0.x   | :white_check_mark: |
 
 ---
 
-## 1. Threat Model & Architecture
+## 1. Threat Model & Security Controls
 
-NetScope is designed under the principle of **least-privilege execution**:
+NetScope inspects live network telemetry while maintaining strict security controls:
 
-1. **Standard Unprivileged Mode (Socket Table Poller):**
-   - By default, NetScope operates without root or administrator privileges.
-   - It reads OS socket connection tables (`netstat` / `ss`) and queries the system process table to identify which applications own active connections.
-2. **Packet Capture Privilege Escalation (Npcap / libpcap):**
-   - Deep packet header inspection requires administrative elevation or driver access via Npcap (Windows) or `libpcap` (Linux/macOS).
-   - If privileges or drivers are not available, NetScope gracefully runs in unprivileged socket mode with an informative banner.
-3. **Firewall Isolation:**
-   - Firewall commands invoke standard operating system tools (`netsh.exe` on Windows, `iptables` on Linux) only upon explicit user confirmation.
+### Least-Privilege Execution Model
+1. **Tier A (Standard User):**
+   - Operates without administrative privileges.
+   - Reads active TCP and UDP socket tables via native Win32 APIs (`GetExtendedTcpTable`, `GetExtendedUdpTable`).
+   - Resolves routing gateways via the Windows routing table.
+   - Queries local subnet neighbors via rate-limited Win32 `SendARP`.
+2. **Tier B (Elevated Visibility):**
+   - Activated only when the user explicitly triggers "Enable full visibility" through Windows User Account Control (UAC).
+   - Collects aggregated packet and throughput statistics via kernel Event Tracing for Windows (ETW `Microsoft-Windows-Kernel-Network`).
+
+### Process Management Guardrails
+- **Protected Critical Processes:** Built-in safeguards strictly refuse termination requests for critical Windows system processes:
+  - `System Idle Process` (PID 0), `System` (PID 4)
+  - `csrss.exe`, `smss.exe`, `wininit.exe`, `winlogon.exe`
+  - `services.exe`, `lsass.exe`, `svchost.exe`, `explorer.exe`
+- **PID Reuse Protection:** Before executing a termination command, NetScope re-verifies that the target PID still matches the exact process name and creation timestamp recorded during selection.
+
+### Command Injection Prevention
+- **Direct Windows API Execution:** External URLs and file paths are never passed to `cmd.exe` or `powershell.exe`. URLs are parsed and validated with the Rust `url` crate, restricted to `http:` and `https:` schemes, and launched via native Windows shell functions (`ShellExecuteW`).
+- **Firewall Input Validation:** Remote IP blocking strictly validates inputs as `std::net::IpAddr`. CIDR notations, ranges, and loopback/multicast addresses are rejected.
+
+### Webview Hardening
+- **Strict Content Security Policy (CSP):** Configured in `tauri.conf.json` with `default-src 'self'; connect-src 'self' https://speed.cloudflare.com https://api.github.com`.
+- **Disabled DevTools in Release:** Webview developer tools are stripped in production builds.
 
 ---
 
-## 2. Reporting Vulnerabilities
+## 2. Reporting Security Vulnerabilities
 
 If you discover a security vulnerability within NetScope, please report it responsibly:
 
+- **GitHub Security Advisories:** Submit a report via [GitHub Security Advisories](https://github.com/Ahmed-Affes/NetScope/security/advisories/new).
 - **Email:** security@netscope.dev
-- **GitHub Security Advisory:** Submit a private advisory via [GitHub Security Advisories](https://github.com/Ahmed-Affes/NetScope/security/advisories/new).
 
-Please allow up to 48 hours for an initial response before public disclosure. Include:
-- A description of the vulnerability.
-- Steps to reproduce or proof-of-concept code.
-- Potential impact and suggested mitigations.
+Please include:
+- A clear description of the vulnerability.
+- Proof of concept or reproduction steps.
+- Assessed impact and potential mitigations.

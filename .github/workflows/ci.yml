@@ -42,18 +42,14 @@ jobs:
 
   backend:
     name: Rust Backend Verification
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install system dependencies for Tauri on Linux
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libpcap-dev
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
+          targets: x86_64-pc-windows-msvc
           components: clippy, rustfmt
 
       - name: Rust Cache
@@ -71,7 +67,7 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
       - name: Cargo Clippy
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
   build-desktop:
     name: Build Windows Desktop App (.exe)
@@ -126,16 +122,17 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.2.0
-          name: "NetScope Desktop v0.2.0"
+          tag_name: v0.2.6
+          name: "NetScope Desktop v0.2.6"
           body: |
-            ### NetScope Desktop v0.2.0 - 100% Native Windows Desktop Release
-            - **100% Real-Time Live PC Topology**: Real Windows socket poller (TCP & UDP) mapped to your actual PC and processes.
-            - **Real PC ATK-SIM**: Cyber threat simulations anchored directly to your machine's hostname and running apps.
-            - **Full Network Incident Replay**: Scrubbable timeline with playback speeds (0.5x, 1x, 2x, 4x), session recording, and incident traces.
-            - **Frameless Window Management**: Tauri v2 custom titlebar with minimize, maximize, and close controls.
-            - **HUD Layout & Collision Optimization**: Zero panel overlap between metrics, ATK-SIM, alerts, and legend.
-            - **In-App Update System**: Live GitHub release notifications and direct installer download.
+            ### NetScope Desktop v0.2.6 - Native Windows Network Topology
+            - **Native Win32 Socket Telemetry**: Real Windows TCP & UDP socket polling mapped to active processes and listening services.
+            - **Local Traffic Correlation**: Client applications linked directly to local services (e.g. Ollama, Neo4j, Vite).
+            - **Accurate Gateway Resolution**: Discovered directly from the Windows routing table (no `.1` heuristics).
+            - **Subnet LAN Discovery**: Light SendARP scanning with bundled offline MAC OUI vendor resolution.
+            - **Clean Overview Mode**: Groups remote CDN/cloud endpoints into expandable organization clusters.
+            - **Customizable Traffic Legend**: Live connection counts, pinned ports, and dimmed zero-activity rows.
+            - **Guarded Process Inspector**: Plain-language process overview with critical system process termination protection.
           draft: false
           prerelease: false
           files: |

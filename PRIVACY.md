@@ -1,42 +1,37 @@
-# NetScope Privacy Policy & Zero-Local-DB Guarantee
+# NetScope Privacy Policy
 
-**Last Updated:** September 2026
+**Last Updated:** October 2026
 
-At NetScope, privacy is a non-negotiable core architectural constraint. This document provides a transparent breakdown of how NetScope handles network traffic data, authentication, and cloud synchronization.
-
----
-
-## 1. Zero-Local-DB Guarantee
-
-- **No Local Databases:** NetScope does **not** install or write to any local SQLite, DuckDB, RocksDB, or plaintext data files on your machine.
-- **No PCAP Dumps on Disk:** Raw network packets and PCAP dumps are analyzed strictly in volatile memory (RAM) and are never written to disk.
-- **RAM-Only Aggregation:** Sockets and flow records are aggregated into 1-second rolling buckets in RAM. If the application is closed without recording, all telemetry evaporates immediately.
+At NetScope, user privacy and data sovereignty are fundamental architectural requirements. This document outlines how NetScope handles network traffic data, system identifiers, and external network interactions.
 
 ---
 
-## 2. Cloud Persistence (Supabase Only)
+## 1. Local-Only Processing & Zero Cloud Uploads
 
-- **Optional Cloud Recording:** Telemetry is only persisted when you explicitly hit the **REC** button.
-- **End-to-End User Isolation (RLS):** All data stored in Supabase is protected by strict **Row Level Security (RLS)**. Only your authenticated user ID (`auth.uid()`) can query, insert, or inspect your devices, sessions, and alerts.
-- **Anonymized Aggregations:** Recorded sessions store 10-second batched summaries of node and link counts, bytes transferred, and threat alerts. Raw packet payloads (such as passwords, credit card numbers, or HTTP body contents) are **never** captured or uploaded.
-
----
-
-## 3. Remote Viewer & Realtime Broadcast
-
-- When using the **Remote HUD Viewer** feature to view topology on your phone or tablet, data is transmitted over an encrypted WebSockets / WebRTC broadcast channel in Supabase Realtime.
-- Broadcast sessions expire automatically and are ephemeral.
+- **No Remote Telemetry:** NetScope does **not** collect, upload, or transmit your network traffic, socket tables, visited IP addresses, or process names to any remote servers, analytics platforms, or third parties.
+- **Volatile In-Memory Operation:** Active sockets, LAN neighbor records, and traffic counters reside exclusively in volatile memory (RAM) while the application is open. When NetScope is closed, all cached session data immediately evaporates.
+- **No Disk Database:** NetScope does not write your connection logs, browsing history, or packet data to local databases or log files.
 
 ---
 
-## 4. Firewall Rule Transparency
+## 2. External Network Queries & Third-Party Services
 
-- NetScope will **never** alter your operating system firewall (`netsh advfirewall` or `iptables`) without explicit user interaction.
-- Clicking **"Block Endpoint via OS Firewall"** requires administrative elevation and prompts for confirmation before applying any quarantine rule.
+- **Offline Vendor Resolution:** Hardware MAC address vendor lookups for local LAN devices use a bundled, offline MAC OUI prefix table. Your local devices' MAC addresses are **never** transmitted over the internet.
+- **Reverse-DNS Resolution:** Hostname lookups are performed through standard OS DNS resolver calls with a local 10-minute cache and strict timeouts.
+- **Speed Test Diagnostics:** When you explicitly open the Speed Test modal and run a diagnostic, NetScope communicates with Cloudflare's public speed test endpoint (`speed.cloudflare.com`). If this request fails or is blocked, NetScope displays "Unknown" rather than guessing. No identifying network data is sent during normal topology inspection.
+- **GitHub Update Checks:** NetScope checks GitHub Releases (`api.github.com`) solely to query whether a newer application release is available.
 
 ---
 
-## 5. Contact & Auditing
+## 3. System Privileges & OS Modifications
 
-NetScope is fully open-source. You can inspect every line of network polling, data ingestion, and cloud transmission logic directly in the repository:
+- **Firewall Quarantine Rules:** NetScope never modifies your Windows Defender Firewall rules without direct user interaction. Clicking "Block Endpoint via OS Firewall" invokes native Windows `netsh.exe advfirewall` only after explicit confirmation.
+- **Process Termination:** The "End Task" action terminates a process only upon explicit user confirmation, subject to strict safety guardrails preventing termination of critical Windows system processes.
+- **Elevation (UAC):** When launched unprivileged, NetScope operates with read-only socket visibility (Tier A). Kernel ETW bandwidth metering (Tier B) is only activated if you choose to relaunch with Administrator privileges.
+
+---
+
+## 4. Open-Source Verification
+
+NetScope is open-source under the MIT license. You can review the complete source code, native Win32 bindings, and network collection routines at:
 [https://github.com/Ahmed-Affes/NetScope](https://github.com/Ahmed-Affes/NetScope)
