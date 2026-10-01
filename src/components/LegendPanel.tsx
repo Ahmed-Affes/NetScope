@@ -72,7 +72,9 @@ export const LegendPanel: React.FC = () => {
               return (
                 <div
                   key={t.label}
-                  onClick={() => setActiveFilter(t.filter)}
+                  onClick={() =>
+                    setActiveFilter(activeFilter === t.filter ? null : t.filter)
+                  }
                   className={`flex items-center justify-between p-1 rounded cursor-pointer transition-colors ${
                     isFiltered ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"
                   }`}
@@ -109,7 +111,9 @@ export const LegendPanel: React.FC = () => {
               return (
                 <div
                   key={t.label}
-                  onClick={() => setActiveFilter(t.filter)}
+                  onClick={() =>
+                    setActiveFilter(activeFilter === t.filter ? null : t.filter)
+                  }
                   className={`flex items-center justify-between p-1 rounded cursor-pointer transition-colors ${
                     isFiltered ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"
                   }`}

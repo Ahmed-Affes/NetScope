@@ -1,12 +1,92 @@
 import React, { useEffect, useRef, useState } from "react";
 import { GraphEngine } from "../graph/GraphEngine";
 import { LiveSource } from "../sources/live";
-import { TrafficSource } from "../types/graph";
+import { TrafficSource, GraphNode, GraphLink } from "../types/graph";
 import { useNetScopeStore } from "../store/useNetScopeStore";
 import { threatEngine } from "../services/threatEngine";
 import { Activity, Wifi, WifiOff } from "lucide-react";
 
 type LoadState = "loading" | "ok" | "empty";
+
+function filterTopology(
+  nodesList: GraphNode[],
+  linksList: GraphLink[],
+  activeFilter: string | null,
+  searchQuery: string | null
+): { filteredNodes: GraphNode[]; filteredLinks: GraphLink[] } {
+  let matchedNodes = nodesList;
+  let matchedLinks = linksList;
+
+  // 1. Process activeFilter (Node kind or Traffic/Port/Proto)
+  if (activeFilter) {
+    if (activeFilter.startsWith("port:")) {
+      const portNum = parseInt(activeFilter.replace("port:", ""), 10);
+      matchedLinks = linksList.filter(
+        (l) =>
+          l.port === portNum ||
+          (portNum === 22 && l.service?.toLowerCase() === "ssh") ||
+          (portNum === 80 && l.service?.toLowerCase() === "http") ||
+          (portNum === 443 && l.service?.toLowerCase() === "https") ||
+          (portNum === 53 && l.service?.toLowerCase() === "dns") ||
+          (portNum === 11434 && l.service?.toLowerCase() === "ollama") ||
+          (portNum === 7474 && l.service?.toLowerCase() === "neo4j") ||
+          (portNum === 8000 && l.service?.toLowerCase() === "kruel")
+      );
+      const connectedIds = new Set(matchedLinks.flatMap((l) => [l.source, l.target]));
+      matchedNodes = nodesList.filter((n) => connectedIds.has(n.id));
+    } else if (activeFilter.startsWith("proto:")) {
+      const proto = activeFilter.replace("proto:", "").toLowerCase();
+      matchedLinks = linksList.filter((l) => l.proto.toLowerCase() === proto);
+      const connectedIds = new Set(matchedLinks.flatMap((l) => [l.source, l.target]));
+      matchedNodes = nodesList.filter((n) => connectedIds.has(n.id));
+    } else if (activeFilter === "threat") {
+      matchedNodes = nodesList.filter((n) => n.kind === "threat" || Boolean(n.threat));
+      const visibleIds = new Set(matchedNodes.map((n) => n.id));
+      matchedLinks = linksList.filter(
+        (l) => visibleIds.has(l.source) && visibleIds.has(l.target)
+      );
+    } else {
+      // Node kind filter (e.g. "host", "gateway", "lan", "process", "docker", "internet", "tailscale", "monitor")
+      matchedNodes = nodesList.filter((n) => n.kind === activeFilter);
+      const visibleIds = new Set(matchedNodes.map((n) => n.id));
+      matchedLinks = linksList.filter(
+        (l) => visibleIds.has(l.source) && visibleIds.has(l.target)
+      );
+    }
+  }
+
+  // 2. Process searchQuery
+  if (searchQuery && searchQuery.trim()) {
+    const q = searchQuery.toLowerCase().trim();
+    if (q.startsWith("port:")) {
+      const portNum = parseInt(q.replace("port:", ""), 10);
+      if (!isNaN(portNum)) {
+        matchedLinks = matchedLinks.filter((l) => l.port === portNum);
+        const connectedIds = new Set(matchedLinks.flatMap((l) => [l.source, l.target]));
+        matchedNodes = matchedNodes.filter((n) => connectedIds.has(n.id));
+      }
+    } else if (q.startsWith("proto:")) {
+      const proto = q.replace("proto:", "").toLowerCase();
+      matchedLinks = matchedLinks.filter((l) => l.proto.toLowerCase() === proto);
+      const connectedIds = new Set(matchedLinks.flatMap((l) => [l.source, l.target]));
+      matchedNodes = matchedNodes.filter((n) => connectedIds.has(n.id));
+    } else {
+      matchedNodes = matchedNodes.filter(
+        (n) =>
+          n.label.toLowerCase().includes(q) ||
+          (n.ip && n.ip.toLowerCase().includes(q)) ||
+          n.kind.toLowerCase().includes(q) ||
+          (n.hostname && n.hostname.toLowerCase().includes(q))
+      );
+      const visibleIds = new Set(matchedNodes.map((n) => n.id));
+      matchedLinks = matchedLinks.filter(
+        (l) => visibleIds.has(l.source) && visibleIds.has(l.target)
+      );
+    }
+  }
+
+  return { filteredNodes: matchedNodes, filteredLinks: matchedLinks };
+}
 
 export const GraphCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,8 +122,6 @@ export const GraphCanvas: React.FC = () => {
 
       // Seed initial snapshot
       const snapshot = await source.snapshot();
-      const totalNodes = snapshot.nodes.length;
-
       if (!mounted) return;
 
       applyDelta({
@@ -56,56 +134,52 @@ export const GraphCanvas: React.FC = () => {
         removeLinkIds: [],
       });
 
-      const currentMode = useNetScopeStore.getState().layoutMode;
-      engine.updateGraph(snapshot.nodes, snapshot.links, currentMode);
+      const currentStore = useNetScopeStore.getState();
+      const { filteredNodes, filteredLinks } = filterTopology(
+        snapshot.nodes,
+        snapshot.links,
+        currentStore.activeFilter,
+        currentStore.searchQuery
+      );
 
-      setNodeCount(totalNodes);
-      setLoadState(totalNodes === 0 ? "empty" : "ok");
+      engine.updateGraph(filteredNodes, filteredLinks, currentStore.layoutMode);
+
+      const hasConstraint = Boolean(
+        currentStore.activeFilter ||
+          (currentStore.searchQuery && currentStore.searchQuery.trim())
+      );
+      const activeCount = hasConstraint ? filteredNodes.length : snapshot.nodes.length;
+      setNodeCount(activeCount);
+      setLoadState(activeCount === 0 ? "empty" : "ok");
 
       // Subscribe to deltas
       source.onDelta((delta) => {
         if (!mounted) return;
         applyDelta(delta);
 
-        const currentStore = useNetScopeStore.getState();
-        const nodesList = Object.values(currentStore.nodes);
-        const linksList = Object.values(currentStore.links);
+        const storeNow = useNetScopeStore.getState();
+        const nodesList = Object.values(storeNow.nodes);
+        const linksList = Object.values(storeNow.links);
 
-        // If we get new nodes, clear empty state
-        if (nodesList.length > 0 && loadState !== "ok") {
-          setNodeCount(nodesList.length);
-          setLoadState("ok");
-        }
-
-        // Filter if active filter is set
-        let filteredNodes = nodesList;
-        if (currentStore.activeFilter) {
-          const filter = currentStore.activeFilter;
-          filteredNodes = nodesList.filter((n) => {
-            if (filter === "threat") return n.kind === "threat";
-            return n.kind === filter;
-          });
-        }
-
-        if (currentStore.searchQuery && currentStore.searchQuery.trim()) {
-          const q = currentStore.searchQuery.toLowerCase().trim();
-          filteredNodes = filteredNodes.filter(
-            (n) =>
-              n.label.toLowerCase().includes(q) ||
-              (n.ip && n.ip.toLowerCase().includes(q)) ||
-              n.kind.toLowerCase().includes(q)
-          );
-        }
-
-        const visibleNodeIds = new Set(filteredNodes.map((n) => n.id));
-        const filteredLinks = linksList.filter(
-          (l) => visibleNodeIds.has(l.source) && visibleNodeIds.has(l.target)
+        const { filteredNodes: nextNodes, filteredLinks: nextLinks } = filterTopology(
+          nodesList,
+          linksList,
+          storeNow.activeFilter,
+          storeNow.searchQuery
         );
 
+        const constraintNow = Boolean(
+          storeNow.activeFilter ||
+            (storeNow.searchQuery && storeNow.searchQuery.trim())
+        );
+        const countNow = constraintNow ? nextNodes.length : nodesList.length;
+        setNodeCount(countNow);
+        setLoadState(countNow === 0 ? "empty" : "ok");
+
         engine.updateGraph(
-          filteredNodes,
-          filteredLinks,
-          currentStore.layoutMode,
+          nextNodes,
+          nextLinks,
+          storeNow.layoutMode,
           delta.nodePositions
         );
 
@@ -137,34 +211,19 @@ export const GraphCanvas: React.FC = () => {
       const nodesList = Object.values(currentStore.nodes);
       const linksList = Object.values(currentStore.links);
 
-      let filteredNodes = nodesList;
-      if (activeFilter) {
-        filteredNodes = nodesList.filter((n) => {
-          if (activeFilter === "threat") return n.kind === "threat";
-          return n.kind === activeFilter;
-        });
-      }
-
-      if (searchQuery && searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        filteredNodes = filteredNodes.filter(
-          (n) =>
-            n.label.toLowerCase().includes(q) ||
-            (n.ip && n.ip.toLowerCase().includes(q)) ||
-            n.kind.toLowerCase().includes(q)
-        );
-      }
-
-      const visibleNodeIds = new Set(filteredNodes.map((n) => n.id));
-      const filteredLinks = linksList.filter(
-        (l) => visibleNodeIds.has(l.source) && visibleNodeIds.has(l.target)
+      const { filteredNodes, filteredLinks } = filterTopology(
+        nodesList,
+        linksList,
+        activeFilter,
+        searchQuery
       );
 
-      // Show empty state for filters that return nothing
-      if (activeFilter || (searchQuery && searchQuery.trim())) {
-        setNodeCount(filteredNodes.length);
-        setLoadState(filteredNodes.length === 0 ? "empty" : "ok");
-      }
+      const hasConstraint = Boolean(
+        activeFilter || (searchQuery && searchQuery.trim())
+      );
+      const activeCount = hasConstraint ? filteredNodes.length : nodesList.length;
+      setNodeCount(activeCount);
+      setLoadState(activeCount === 0 ? "empty" : "ok");
 
       engineRef.current.updateGraph(filteredNodes, filteredLinks, layoutMode);
     }
@@ -200,7 +259,7 @@ export const GraphCanvas: React.FC = () => {
       {/* Empty / Error state */}
       {loadState === "empty" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <div className="flex flex-col items-center gap-4 bg-[#0b1120]/90 backdrop-blur-sm border border-slate-700/50 rounded-xl px-10 py-8 shadow-lg max-w-md text-center">
+          <div className="flex flex-col items-center gap-4 bg-[#0b1120]/90 backdrop-blur-sm border border-slate-700/50 rounded-xl px-10 py-8 shadow-lg max-w-md text-center pointer-events-auto">
             {activeFilter || (searchQuery && searchQuery.trim()) ? (
               <>
                 <Wifi className="w-10 h-10 text-slate-500 opacity-60" />
@@ -208,14 +267,25 @@ export const GraphCanvas: React.FC = () => {
                   <p className="text-slate-300 font-semibold text-sm tracking-wider mb-1">
                     NO NODES MATCH FILTER
                   </p>
-                  <p className="text-slate-500 text-xs leading-relaxed">
+                  <p className="text-slate-400 text-xs leading-relaxed">
                     {activeFilter
-                      ? `No "${activeFilter}" type nodes in the current topology.`
+                      ? `No active "${activeFilter}" traffic or nodes currently in your PC topology.`
                       : `No nodes match "${searchQuery}".`}
                     <br />
-                    Try clearing the filter or search query.
+                    <span className="text-slate-500 text-[11px]">
+                      Try clearing the filter or search query.
+                    </span>
                   </p>
                 </div>
+                <button
+                  onClick={() => {
+                    useNetScopeStore.getState().setActiveFilter(null);
+                    useNetScopeStore.getState().setSearchQuery("");
+                  }}
+                  className="px-3.5 py-1.5 text-xs rounded bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30 transition-colors cursor-pointer font-semibold shadow-sm"
+                >
+                  Clear Filter
+                </button>
               </>
             ) : (
               <>
