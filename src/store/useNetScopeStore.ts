@@ -6,9 +6,6 @@ interface NetScopeState {
   links: Record<string, GraphLink>;
   metrics: SystemMetrics;
   alerts: Alert[];
-  trafficMode: "live" | "replay";
-  isRecording: boolean;
-  recordingSeconds: number;
   selectedNodeId: string | null;
   selectedLinkId: string | null;
   isMetricsOpen: boolean;
@@ -19,11 +16,6 @@ interface NetScopeState {
   layoutMode: "force" | "radial" | "geo" | "3d";
   graphVersion: number;
 
-  // Replay State
-  replayProgress: number;
-  replayPlaying: boolean;
-  replaySpeed: number;
-
   // Actions
   applyDelta: (delta: GraphDelta) => void;
   setMetrics: (metrics: SystemMetrics) => void;
@@ -33,16 +25,10 @@ interface NetScopeState {
   toggleLegend: () => void;
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
-  setTrafficMode: (mode: "live" | "replay") => void;
-  toggleRecording: () => void;
-  setRecording: (isRecording: boolean) => void;
   setSearchQuery: (query: string) => void;
   setActiveFilter: (filter: string | null) => void;
   setLayoutMode: (mode: "force" | "radial" | "geo" | "3d") => void;
   clearGraph: () => void;
-  setReplayProgress: (progress: number) => void;
-  setReplayPlaying: (playing: boolean) => void;
-  setReplaySpeed: (speed: number) => void;
 }
 
 const initialMetrics: SystemMetrics = {
@@ -63,9 +49,6 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
   links: {},
   metrics: initialMetrics,
   alerts: [],
-  trafficMode: "live",
-  isRecording: false,
-  recordingSeconds: 0,
   selectedNodeId: null,
   selectedLinkId: null,
   isMetricsOpen: true, // Visible by default
@@ -75,9 +58,6 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
   activeFilter: null,
   layoutMode: "force",
   graphVersion: 0,
-  replayProgress: 0,
-  replayPlaying: false,
-  replaySpeed: 1,
 
   applyDelta: (delta) =>
     set((state) => {
@@ -162,28 +142,6 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
   openCommandPalette: () => set({ isCommandPaletteOpen: true }),
   closeCommandPalette: () => set({ isCommandPaletteOpen: false }),
 
-  setTrafficMode: (mode) =>
-    set((s) => ({
-      trafficMode: mode,
-      nodes: {},
-      links: {},
-      selectedNodeId: null,
-      selectedLinkId: null,
-      graphVersion: s.graphVersion + 1,
-    })),
-
-  toggleRecording: () =>
-    set((s) => ({
-      isRecording: !s.isRecording,
-      recordingSeconds: !s.isRecording ? 0 : s.recordingSeconds,
-    })),
-  setRecording: (isRecording) =>
-    set({
-      isRecording,
-      recordingSeconds: 0,
-    }),
-
-
   setSearchQuery: (query) => set({ searchQuery: query }),
   setActiveFilter: (filter) =>
     set((s) => ({
@@ -201,8 +159,4 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
       alerts: [],
       graphVersion: state.graphVersion + 1,
     })),
-
-  setReplayProgress: (progress) => set({ replayProgress: progress }),
-  setReplayPlaying: (playing) => set({ replayPlaying: playing }),
-  setReplaySpeed: (speed) => set({ replaySpeed: speed }),
 }));

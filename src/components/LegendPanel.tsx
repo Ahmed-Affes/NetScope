@@ -10,6 +10,7 @@ export const LegendPanel: React.FC = () => {
     { label: "Host", color: "#22d3ee", filter: "host" },
     { label: "Gateway", color: "#fb923c", filter: "gateway" },
     { label: "LAN Device", color: "#34d399", filter: "lan" },
+    { label: "Process", color: "#e879f9", filter: "process" },
     { label: "Docker", color: "#a78bfa", filter: "docker" },
     { label: "Internet", color: "#60a5fa", filter: "internet" },
     { label: "Tailscale", color: "#2dd4bf", filter: "tailscale" },

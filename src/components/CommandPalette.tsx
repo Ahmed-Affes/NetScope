@@ -4,10 +4,8 @@ import { useNetScopeStore } from "../store/useNetScopeStore";
 import {
   Activity,
   Layers,
-  Radio,
   Search,
   Shield,
-  Smartphone,
 } from "lucide-react";
 
 export const CommandPalette: React.FC = () => {
@@ -17,7 +15,6 @@ export const CommandPalette: React.FC = () => {
     closeCommandPalette,
     setActiveFilter,
     setLayoutMode,
-    toggleRecording,
   } = useNetScopeStore();
 
   const setOpen = (val: boolean) => {
@@ -157,16 +154,6 @@ export const CommandPalette: React.FC = () => {
             <Command.Group heading="Controls" className="text-[10px] text-slate-400 uppercase tracking-wider px-2 py-1 font-bold">
               <Command.Item
                 onSelect={() => {
-                  toggleRecording();
-                  setOpen(false);
-                }}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
-              >
-                <Radio className="w-3.5 h-3.5 text-red-400" />
-                <span>Toggle Session Recording</span>
-              </Command.Item>
-              <Command.Item
-                onSelect={() => {
                   window.dispatchEvent(new CustomEvent("netscope:show-onboarding"));
                   setOpen(false);
                 }}
@@ -174,16 +161,6 @@ export const CommandPalette: React.FC = () => {
               >
                 <Activity className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Show Onboarding Briefing</span>
-              </Command.Item>
-              <Command.Item
-                onSelect={() => {
-                  window.dispatchEvent(new CustomEvent("netscope:open-remote-viewer"));
-                  setOpen(false);
-                }}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
-              >
-                <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Stream to Phone (Remote HUD Viewer)</span>
               </Command.Item>
               <Command.Item
                 onSelect={() => {

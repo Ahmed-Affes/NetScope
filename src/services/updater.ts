@@ -98,7 +98,7 @@ class UpdateService {
         name: releaseData.name || `NetScope ${tagName}`,
         notes:
           releaseData.body ||
-          "### NetScope Desktop Update\n- Real Windows ARP LAN & Gateway auto-discovery\n- Real-time physics anti-collision layout\n- Interactive threat simulation (SSH brute force & C2 detection)\n- Recorded node movements & 30 FPS drag replay",
+          "Performance improvements, enhanced network socket telemetry, and bug fixes.",
         publishedAt: releaseData.published_at || new Date().toISOString(),
         downloadUrl: exeDownloadUrl,
         hasUpdate: isNewer,
@@ -115,11 +115,11 @@ class UpdateService {
 
   public getMockUpdate(): UpdateInfo {
     return {
-      version: "0.3.0",
-      tagName: "v0.3.0",
-      name: "NetScope v0.3.0 - Neural Cyber Topology & Threat Defense",
+      version: "0.2.7",
+      tagName: "v0.2.7",
+      name: "NetScope v0.2.7",
       notes:
-        "### What's New in v0.3.0\n- 🚀 **Windows Native Telemetry**: Automatic Gateway and LAN ARP scanner with zero config.\n- 🛡️ **Threat Defense & Alerts**: Live SSH brute force detection and malware beacon visualizer.\n- ⚡ **GPU Layout Engine**: Instant anti-clump physics and golden spiral layout.\n- 🎥 **Full Session Recording**: Tracks live node dragging, traffic bursts, and app spawns at 30 FPS.",
+        "• Real-time socket polling performance improvements\n• Windows ARP network discovery stability\n• UI polish and dark mode refinements",
       publishedAt: new Date().toISOString(),
       downloadUrl: `https://github.com/${REPO}/releases`,
       hasUpdate: true,

@@ -88,18 +88,6 @@ pub fn get_system_metrics() -> SystemMetrics {
 
 #[tauri::command]
 #[specta::specta]
-pub fn trigger_simulation(scenario: String) -> Result<String, String> {
-    Ok(format!("Simulation scenario '{}' triggered", scenario))
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn clean_simulations() -> Result<String, String> {
-    Ok("All simulated nodes, links and alerts cleaned".into())
-}
-
-#[tauri::command]
-#[specta::specta]
 pub fn set_traffic_mode(mode: String) -> Result<String, String> {
     Ok(format!("Switched mode to {}", mode))
 }

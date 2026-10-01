@@ -383,10 +383,10 @@ impl SocketPoller {
                     org: None,
                     first_seen: now,
                     last_seen: now,
-                    bytes_in: 250_000,
-                    bytes_out: 480_000,
-                    rate_in: 4500.0,
-                    rate_out: 8500.0,
+                    bytes_in: 0,
+                    bytes_out: 0,
+                    rate_in: 0.0,
+                    rate_out: 0.0,
                     threat: None,
                 },
             );
@@ -402,10 +402,10 @@ impl SocketPoller {
                     proto: "udp".into(),
                     port: 53,
                     service: Some("dns".into()),
-                    bytes_in: 120_000,
-                    bytes_out: 240_000,
-                    rate: 1200.0,
-                    packets: 340,
+                    bytes_in: 0,
+                    bytes_out: 0,
+                    rate: 0.0,
+                    packets: 0,
                     state: Some("CONNECTED".into()),
                     first_seen: now,
                     last_seen: now,
@@ -434,10 +434,10 @@ impl SocketPoller {
                     org: None,
                     first_seen: now,
                     last_seen: now,
-                    bytes_in: 32_000,
-                    bytes_out: 64_000,
-                    rate_in: 600.0,
-                    rate_out: 1200.0,
+                    bytes_in: 0,
+                    bytes_out: 0,
+                    rate_in: 0.0,
+                    rate_out: 0.0,
                     threat: None,
                 },
             );
@@ -451,12 +451,12 @@ impl SocketPoller {
                     source: parent_id.clone(),
                     target: lan_id.clone(),
                     proto: "tcp".into(),
-                    port: 80,
-                    service: Some("http".into()),
-                    bytes_in: 32_000,
-                    bytes_out: 64_000,
-                    rate: 800.0,
-                    packets: 48,
+                    port: 0,
+                    service: None,
+                    bytes_in: 0,
+                    bytes_out: 0,
+                    rate: 0.0,
+                    packets: 0,
                     state: Some("CONNECTED".into()),
                     first_seen: now,
                     last_seen: now,
@@ -526,6 +526,8 @@ impl SocketPoller {
                 && entry.remote_ip != "0.0.0.0"
                 && entry.remote_ip != "*"
                 && entry.remote_ip != "127.0.0.1"
+                && entry.remote_ip != "::1"
+                && entry.remote_ip != "::"
             {
                 let remote_id = format!("ip:{}", entry.remote_ip);
                 let remote_kind = Self::classify_ip(&entry.remote_ip);

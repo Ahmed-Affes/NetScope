@@ -118,5 +118,5 @@ export interface TrafficSource {
   stop(): Promise<void>;
   snapshot(): Promise<{ nodes: GraphNode[]; links: GraphLink[] }>;
   onDelta(cb: (d: GraphDelta) => void): () => void;
-  mode: 'live' | 'replay';
+  mode: 'live';
 }

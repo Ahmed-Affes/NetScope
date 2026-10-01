@@ -12,8 +12,6 @@ pub fn run() {
     let builder = Builder::<tauri::Wry>::new().commands(collect_commands![
         commands::get_app_info,
         commands::get_system_metrics,
-        commands::trigger_simulation,
-        commands::clean_simulations,
         commands::set_traffic_mode,
         commands::get_socket_delta,
         commands::get_socket_snapshot,
