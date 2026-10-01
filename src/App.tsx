@@ -6,7 +6,6 @@ import { LegendPanel } from "./components/LegendPanel";
 import { InspectorPanel } from "./components/InspectorPanel";
 import { FilterBar } from "./components/FilterBar";
 import { CommandPalette } from "./components/CommandPalette";
-import { NoPrivilegeBanner } from "./components/NoPrivilegeBanner";
 import { AlertFeed } from "./components/AlertFeed";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { GraphCanvas } from "./components/GraphCanvas";
@@ -99,7 +98,6 @@ export const App: React.FC = () => {
         <GraphCanvas />
 
         {/* Top Centered Status & Filters */}
-        <NoPrivilegeBanner />
         <FilterBar />
 
         {/* Left Cyber Dock (Real PC Metrics) */}
