@@ -180,3 +180,19 @@ pub struct GraphSnapshot {
     pub nodes: Vec<GraphNode>,
     pub links: Vec<GraphLink>,
 }
+
+#[derive(Serialize, Deserialize, specta::Type, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct SocketInfo {
+    pub proto: String,
+    pub local_ip: String,
+    pub local_port: u16,
+    pub remote_ip: String,
+    pub remote_port: u16,
+    pub state: String,
+    pub pid: Option<u32>,
+    pub process_name: Option<String>,
+    pub exe_path: Option<String>,
+    pub service: Option<String>,
+}
+

@@ -3,8 +3,10 @@ import { Command } from "cmdk";
 import { useNetScopeStore } from "../store/useNetScopeStore";
 import {
   Activity,
+  Gauge,
   Globe,
   Layers,
+  Network,
   Router,
   Search,
   Server,
@@ -17,14 +19,23 @@ export const CommandPalette: React.FC = () => {
     isCommandPaletteOpen,
     openCommandPalette,
     closeCommandPalette,
+    openSpeedTest,
+    openPortInspector,
     setActiveFilter,
     setLayoutMode,
     nodes,
     selectNode,
+    searchQuery,
     setSearchQuery,
   } = useNetScopeStore();
 
   const [inputVal, setInputVal] = useState("");
+
+  useEffect(() => {
+    if (isCommandPaletteOpen) {
+      setInputVal(searchQuery || "");
+    }
+  }, [isCommandPaletteOpen, searchQuery]);
 
   const setOpen = (val: boolean) => {
     if (val) openCommandPalette();
@@ -129,6 +140,30 @@ export const CommandPalette: React.FC = () => {
                 ))}
               </Command.Group>
             )}
+
+            {/* Tools & Diagnostics */}
+            <Command.Group heading="Tools & Diagnostics" className="text-[10px] text-cyan-400 uppercase tracking-wider px-2 py-1 font-bold">
+              <Command.Item
+                onSelect={() => {
+                  openPortInspector();
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 font-semibold"
+              >
+                <Network className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Open Active Ports & Sockets Inspector</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => {
+                  openSpeedTest();
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-fuchsia-500/20 hover:text-fuchsia-300 text-slate-300 font-semibold"
+              >
+                <Gauge className="w-3.5 h-3.5 text-fuchsia-400" />
+                <span>Run Real-time Internet Speed Test</span>
+              </Command.Item>
+            </Command.Group>
 
             {/* Traffic & Port Filters */}
             <Command.Group heading="Traffic & Port Filters" className="text-[10px] text-slate-400 uppercase tracking-wider px-2 py-1 font-bold">

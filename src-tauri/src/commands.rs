@@ -135,6 +135,15 @@ pub fn get_socket_snapshot() -> crate::model::GraphSnapshot {
 
 #[tauri::command]
 #[specta::specta]
+pub fn get_active_sockets() -> Vec<crate::model::SocketInfo> {
+    let mut poller_guard = SOCKET_POLLER.lock().unwrap();
+    let poller = poller_guard.get_or_insert_with(crate::sockets::SocketPoller::new);
+    poller.get_active_sockets()
+}
+
+
+#[tauri::command]
+#[specta::specta]
 pub fn get_capture_status() -> crate::capture::CaptureStatus {
     crate::capture::FlowAggregator::check_status()
 }

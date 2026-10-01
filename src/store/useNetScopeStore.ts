@@ -11,6 +11,8 @@ interface NetScopeState {
   isMetricsOpen: boolean;
   isLegendOpen: boolean;
   isCommandPaletteOpen: boolean;
+  isSpeedTestOpen: boolean;
+  isPortInspectorOpen: boolean;
   searchQuery: string;
   activeFilter: string | null;
   layoutMode: "force" | "radial" | "geo" | "3d";
@@ -25,6 +27,10 @@ interface NetScopeState {
   toggleLegend: () => void;
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
+  openSpeedTest: () => void;
+  closeSpeedTest: () => void;
+  openPortInspector: () => void;
+  closePortInspector: () => void;
   setSearchQuery: (query: string) => void;
   setActiveFilter: (filter: string | null) => void;
   setLayoutMode: (mode: "force" | "radial" | "geo" | "3d") => void;
@@ -58,6 +64,8 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
   isMetricsOpen: true, // Visible by default
   isLegendOpen: true,  // Visible by default
   isCommandPaletteOpen: false,
+  isSpeedTestOpen: false,
+  isPortInspectorOpen: false,
   searchQuery: "",
   activeFilter: null,
   layoutMode: "force",
@@ -145,6 +153,10 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
   toggleLegend: () => set((s) => ({ isLegendOpen: !s.isLegendOpen })),
   openCommandPalette: () => set({ isCommandPaletteOpen: true }),
   closeCommandPalette: () => set({ isCommandPaletteOpen: false }),
+  openSpeedTest: () => set({ isSpeedTestOpen: true }),
+  closeSpeedTest: () => set({ isSpeedTestOpen: false }),
+  openPortInspector: () => set({ isPortInspectorOpen: true }),
+  closePortInspector: () => set({ isPortInspectorOpen: false }),
 
   setSearchQuery: (query) => set({ searchQuery: query }),
   setActiveFilter: (filter) =>

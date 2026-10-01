@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::model::{GraphDelta, GraphLink, GraphNode, LinkUpdate, NodeKind, NodeUpdate};
+use crate::model::{GraphDelta, GraphLink, GraphNode, LinkUpdate, NodeKind, NodeUpdate, SocketInfo};
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::process::Command;
@@ -670,6 +670,48 @@ impl SocketPoller {
             self.previous_nodes.values().cloned().collect(),
             self.previous_links.values().cloned().collect(),
         )
+    }
+
+    pub fn get_active_sockets(&mut self) -> Vec<SocketInfo> {
+        let entries = self.scan_sockets();
+        let mut sockets = Vec::with_capacity(entries.len());
+
+        for entry in entries {
+            let service = classify_service(entry.local_port)
+                .or_else(|| classify_service(entry.remote_port));
+
+            sockets.push(SocketInfo {
+                proto: entry.proto,
+                local_ip: entry.local_ip,
+                local_port: entry.local_port,
+                remote_ip: entry.remote_ip,
+                remote_port: entry.remote_port,
+                state: entry.state,
+                pid: entry.pid,
+                process_name: entry.process_name,
+                exe_path: entry.exe_path,
+                service,
+            });
+        }
+
+        // Sort by state (LISTENING first, then ESTABLISHED), then local_port
+        sockets.sort_by(|a, b| {
+            let state_order_a = match a.state.as_str() {
+                "LISTENING" => 0,
+                "ESTABLISHED" => 1,
+                _ => 2,
+            };
+            let state_order_b = match b.state.as_str() {
+                "LISTENING" => 0,
+                "ESTABLISHED" => 1,
+                _ => 2,
+            };
+            state_order_a
+                .cmp(&state_order_b)
+                .then_with(|| a.local_port.cmp(&b.local_port))
+        });
+
+        sockets
     }
 }
 

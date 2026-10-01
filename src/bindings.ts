@@ -46,6 +46,19 @@ export interface SystemMetrics {
   networkTxRate: number;
 }
 
+export interface SocketInfo {
+  proto: string;
+  localIp: string;
+  localPort: number;
+  remoteIp: string;
+  remotePort: number;
+  state: string;
+  pid: number | null;
+  processName: string | null;
+  exePath: string | null;
+  service: string | null;
+}
+
 export const commands = {
   async getAppInfo(): Promise<AppInfo> {
     if (isTauri()) return inv<AppInfo>("get_app_info");
@@ -81,6 +94,11 @@ export const commands = {
       nodes: [{ id: "host:local", kind: "host", label: "This PC", ip: "127.0.0.1", hostname: "localhost", firstSeen: now - 3600000, lastSeen: now, bytesIn: 45_200_000, bytesOut: 98_400_000, rateIn: 0, rateOut: 0 }],
       links: [],
     };
+  },
+
+  async getActiveSockets(): Promise<SocketInfo[]> {
+    if (isTauri()) return inv<SocketInfo[]>("get_active_sockets");
+    return [];
   },
 
   async getCaptureStatus(): Promise<{ isAvailable: boolean; isActive: boolean; driverName: string; error: string | null; interfaces: string[] }> {

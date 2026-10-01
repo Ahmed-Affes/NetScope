@@ -3,8 +3,10 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useNetScopeStore } from "../store/useNetScopeStore";
 import {
   Activity,
+  Gauge,
   Maximize2,
   Minus,
+  Network,
   Search,
   X,
 } from "lucide-react";
@@ -15,6 +17,8 @@ export const TitleBar: React.FC = () => {
     layoutMode,
     setLayoutMode,
     openCommandPalette,
+    openSpeedTest,
+    openPortInspector,
     searchQuery,
     setSearchQuery,
   } = useNetScopeStore();
@@ -78,34 +82,43 @@ export const TitleBar: React.FC = () => {
         </button>
       </div>
 
-      {/* Center: Live Search Bar & Layout Switcher */}
+      {/* Center: Live Search Bar, Port Inspector, Speed Test & Layout Switcher */}
       <div className="flex items-center gap-2.5" data-tauri-drag-region>
-        <div className="relative flex items-center">
-          <Search className="w-3.5 h-3.5 text-cyan-400/80 absolute left-2.5 pointer-events-none" />
+        {/* Click-to-Search Bar */}
+        <div
+          onClick={openCommandPalette}
+          className="relative flex items-center cursor-pointer group"
+          title="Click to search anything or press Ctrl+K"
+        >
+          <Search className="w-3.5 h-3.5 text-cyan-400/80 group-hover:text-cyan-300 absolute left-2.5 pointer-events-none transition-colors" />
           <input
             type="text"
+            readOnly
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                setSearchQuery("");
-                (e.target as HTMLInputElement).blur();
-              }
+            onClick={(e) => {
+              e.stopPropagation();
+              openCommandPalette();
             }}
-            placeholder="Search apps, ports, protocols, IPs..."
-            className="w-72 pl-8 pr-16 py-1 rounded-md bg-[#0e121a]/95 border border-white/[0.08] focus:border-cyan-500/50 text-slate-200 placeholder-slate-500 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all shadow-inner"
+            placeholder="Search apps, ports, protocols, IPs... (Click or Ctrl+K)"
+            className="w-72 pl-8 pr-16 py-1 rounded-md bg-[#0e121a]/95 border border-white/[0.08] hover:border-cyan-500/50 group-hover:border-cyan-500/50 text-slate-200 placeholder-slate-500 text-[11px] font-mono cursor-pointer transition-all shadow-inner"
           />
           {searchQuery ? (
             <button
-              onClick={() => setSearchQuery("")}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSearchQuery("");
+              }}
               className="absolute right-2 text-slate-400 hover:text-white p-0.5 rounded cursor-pointer transition-colors"
-              title="Clear search (Esc)"
+              title="Clear search filter"
             >
               <X className="w-3 h-3" />
             </button>
           ) : (
             <button
-              onClick={openCommandPalette}
+              onClick={(e) => {
+                e.stopPropagation();
+                openCommandPalette();
+              }}
               className="absolute right-1.5 px-1.5 py-0.5 bg-white/[0.06] hover:bg-white/[0.1] text-[9px] rounded text-slate-400 font-mono transition-colors cursor-pointer"
               title="Open Command Palette (Ctrl+K)"
             >
@@ -113,6 +126,26 @@ export const TitleBar: React.FC = () => {
             </button>
           )}
         </div>
+
+        {/* Active Ports Inspector Button */}
+        <button
+          onClick={openPortInspector}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:text-cyan-200 text-[10px] font-medium transition-all shadow-sm cursor-pointer"
+          title="Inspect all active PC ports, listening servers, sockets & processes"
+        >
+          <Network className="w-3 h-3 text-cyan-400" />
+          <span>Active Ports</span>
+        </button>
+
+        {/* Speed Test Button */}
+        <button
+          onClick={openSpeedTest}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-fuchsia-500/10 hover:bg-fuchsia-500/20 border border-fuchsia-500/30 text-fuchsia-300 hover:text-fuchsia-200 text-[10px] font-medium transition-all shadow-sm cursor-pointer"
+          title="Run real-time Internet Speed Test (Download, Upload, Ping)"
+        >
+          <Gauge className="w-3 h-3 text-fuchsia-400" />
+          <span>Speed Test</span>
+        </button>
 
         {/* Layout Modes */}
         <div className="flex items-center bg-[#0e121a] rounded p-0.5 border border-white/[0.06] text-[10px]">

@@ -9,6 +9,8 @@ import { CommandPalette } from "./components/CommandPalette";
 import { AlertFeed } from "./components/AlertFeed";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { GraphCanvas } from "./components/GraphCanvas";
+import { PortInspectorModal } from "./components/PortInspectorModal";
+import { SpeedTestModal } from "./components/SpeedTestModal";
 
 import { useNetScopeStore } from "./store/useNetScopeStore";
 import { commands } from "./bindings";
@@ -52,6 +54,8 @@ export const App: React.FC = () => {
         useNetScopeStore.getState().selectNode(null);
         useNetScopeStore.getState().selectLink(null);
         useNetScopeStore.getState().closeCommandPalette();
+        useNetScopeStore.getState().closeSpeedTest();
+        useNetScopeStore.getState().closePortInspector();
       } else if (e.key === "1") {
         useNetScopeStore.getState().setLayoutMode("force");
       } else if (e.key === "2") {
@@ -118,6 +122,8 @@ export const App: React.FC = () => {
         {/* Modals & Dialogs */}
         <UpdateNotification />
         <CommandPalette />
+        <PortInspectorModal />
+        <SpeedTestModal />
       </div>
     </div>
   );

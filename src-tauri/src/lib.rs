@@ -15,6 +15,7 @@ pub fn run() {
         commands::set_traffic_mode,
         commands::get_socket_delta,
         commands::get_socket_snapshot,
+        commands::get_active_sockets,
         commands::get_capture_status,
         commands::start_capture,
         commands::stop_capture,
