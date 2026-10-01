@@ -131,4 +131,15 @@ export const commands = {
     window.open(url, "_blank");
     return `Opened ${url}`;
   },
+
+  async killProcess(pid: number): Promise<string> {
+    if (isTauri()) return inv<string>("kill_process", { pid });
+    return `Process PID ${pid} terminated`;
+  },
+
+  async revealInExplorer(path: string): Promise<string> {
+    if (isTauri()) return inv<string>("reveal_in_explorer", { path });
+    return `Revealed ${path}`;
+  },
 };
+

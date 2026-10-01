@@ -107,6 +107,7 @@ function filterTopology(
     const directlyMatchedNodes = matchedNodes.filter((n) => {
       // 1. Text & App names (e.g. "chrome", "discord", "ArmouryCrate", "steam")
       if (n.label.toLowerCase().includes(q)) return true;
+      if (n.id.toLowerCase().includes(q)) return true;
       if (n.exePath && n.exePath.toLowerCase().includes(q)) return true;
       if (n.ip && n.ip.toLowerCase().includes(q)) return true;
       if (n.hostname && n.hostname.toLowerCase().includes(q)) return true;
@@ -116,6 +117,7 @@ function filterTopology(
       if (n.pid !== undefined && String(n.pid).includes(q)) return true;
 
       // 2. Kind & Category aliases
+      if ((q === "port" || q === "ports" || q === "socket" || q === "sockets" || q === "listen" || q === "listening") && n.kind === "port") return true;
       if ((q === "router" || q === "gateway" || q === "modem") && n.kind === "gateway") return true;
       if ((q === "pc" || q === "host" || q === "computer" || q === "laptop" || q === "desktop" || q === "me") && n.kind === "host") return true;
       if ((q === "lan" || q === "device" || q === "devices" || q === "wifi") && n.kind === "lan") return true;
@@ -127,27 +129,32 @@ function filterTopology(
       return false;
     });
 
-    // Combine connected context so the user gets the full picture:
-    // If a node matched (e.g. Chrome), include all links connected to it and their destination nodes!
-    // If a link matched (e.g. port 443), include the source & target nodes!
+    // Combine connected context so the user gets the full tree:
+    // If an app/process matched (e.g. Antigravity), include all its bound ports AND any remote IPs!
+    // If a port/link matched (e.g. 5173), include the parent app/process and host!
     const matchedNodeIdSet = new Set(directlyMatchedNodes.map((n) => n.id));
     const finalLinkSet = new Set<GraphLink>(directlyMatchedLinks);
-
-    // If nodes matched, add all links touching those nodes
-    for (const link of matchedLinks) {
-      if (matchedNodeIdSet.has(link.source) || matchedNodeIdSet.has(link.target)) {
-        finalLinkSet.add(link);
-      }
-    }
-
-    // Now collect all node IDs that are either directly matched OR endpoints of matched links
     const finalNodeIdSet = new Set<string>(matchedNodeIdSet);
-    for (const link of finalLinkSet) {
+
+    // Include endpoints of directly matched links
+    for (const link of directlyMatchedLinks) {
       finalNodeIdSet.add(link.source);
       finalNodeIdSet.add(link.target);
     }
 
-    // If any process or LAN device matched, also keep host:local for topological context
+    // 2-hop connected graph expansion so the complete chain (Host -> App -> Port -> Remote IP) is rendered
+    for (let hop = 0; hop < 2; hop++) {
+      const currentNodes = new Set(finalNodeIdSet);
+      for (const link of matchedLinks) {
+        if (currentNodes.has(link.source) || currentNodes.has(link.target)) {
+          finalLinkSet.add(link);
+          finalNodeIdSet.add(link.source);
+          finalNodeIdSet.add(link.target);
+        }
+      }
+    }
+
+    // If any process, port, or LAN device matched, also keep host:local for topological context
     if (finalNodeIdSet.size > 0 && matchedNodes.some((n) => n.id === "host:local")) {
       finalNodeIdSet.add("host:local");
     }

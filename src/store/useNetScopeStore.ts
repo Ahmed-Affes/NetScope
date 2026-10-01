@@ -1,6 +1,13 @@
 import { create } from "zustand";
 import { Alert, GraphDelta, GraphLink, GraphNode, SystemMetrics } from "../types/graph";
 
+export interface KillTarget {
+  pid: number;
+  name: string;
+  ports?: number[];
+  exePath?: string;
+}
+
 interface NetScopeState {
   nodes: Record<string, GraphNode>;
   links: Record<string, GraphLink>;
@@ -13,6 +20,8 @@ interface NetScopeState {
   isCommandPaletteOpen: boolean;
   isSpeedTestOpen: boolean;
   isPortInspectorOpen: boolean;
+  portInspectorInitialTab: "table" | "tree";
+  killTarget: KillTarget | null;
   searchQuery: string;
   activeFilter: string | null;
   layoutMode: "force" | "radial" | "geo" | "3d";
@@ -29,8 +38,10 @@ interface NetScopeState {
   closeCommandPalette: () => void;
   openSpeedTest: () => void;
   closeSpeedTest: () => void;
-  openPortInspector: () => void;
+  openPortInspector: (initialTab?: "table" | "tree") => void;
   closePortInspector: () => void;
+  requestKillProcess: (target: KillTarget) => void;
+  closeKillProcess: () => void;
   setSearchQuery: (query: string) => void;
   setActiveFilter: (filter: string | null) => void;
   setLayoutMode: (mode: "force" | "radial" | "geo" | "3d") => void;
@@ -66,6 +77,8 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
   isCommandPaletteOpen: false,
   isSpeedTestOpen: false,
   isPortInspectorOpen: false,
+  portInspectorInitialTab: "table",
+  killTarget: null,
   searchQuery: "",
   activeFilter: null,
   layoutMode: "force",
@@ -155,8 +168,10 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
   closeCommandPalette: () => set({ isCommandPaletteOpen: false }),
   openSpeedTest: () => set({ isSpeedTestOpen: true }),
   closeSpeedTest: () => set({ isSpeedTestOpen: false }),
-  openPortInspector: () => set({ isPortInspectorOpen: true }),
+  openPortInspector: (initialTab) => set({ isPortInspectorOpen: true, portInspectorInitialTab: initialTab ?? "table" }),
   closePortInspector: () => set({ isPortInspectorOpen: false }),
+  requestKillProcess: (target) => set({ killTarget: target }),
+  closeKillProcess: () => set({ killTarget: null }),
 
   setSearchQuery: (query) => set({ searchQuery: query }),
   setActiveFilter: (filter) =>

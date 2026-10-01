@@ -526,7 +526,7 @@ impl SocketPoller {
                     target: proc_id.clone(),
                     proto: entry.proto.clone(),
                     port: entry.local_port,
-                    service: s_local,
+                    service: s_local.clone(),
                     bytes_in: 1024,
                     bytes_out: 1024,
                     rate: 200.0,
@@ -535,6 +535,60 @@ impl SocketPoller {
                     first_seen: now,
                     last_seen: now,
                 });
+
+            // Port node (e.g. :137 (netbios), :445 (smb), :5173, etc.)
+            let port_id = if entry.local_port > 0 {
+                let port_label = if let Some(ref s) = s_local {
+                    format!(":{} ({})", entry.local_port, s)
+                } else {
+                    format!(":{}", entry.local_port)
+                };
+                let p_id = format!("port:{}:{}:{}", proc_label, entry.proto.to_lowercase(), entry.local_port);
+
+                current_nodes.entry(p_id.clone()).or_insert_with(|| GraphNode {
+                    id: p_id.clone(),
+                    kind: NodeKind::Port,
+                    label: port_label,
+                    pid: entry.pid,
+                    exe_path: entry.exe_path.clone(),
+                    ip: Some(entry.local_ip.clone()),
+                    hostname: None,
+                    country: None,
+                    asn: None,
+                    org: None,
+                    first_seen: now,
+                    last_seen: now,
+                    bytes_in: 512,
+                    bytes_out: 512,
+                    rate_in: 50.0,
+                    rate_out: 50.0,
+                    threat: None,
+                });
+
+                // Link proc -> port
+                let proc_port_link_id = format!("link:{}->{}", proc_id, p_id);
+                current_links
+                    .entry(proc_port_link_id.clone())
+                    .or_insert_with(|| GraphLink {
+                        id: proc_port_link_id,
+                        source: proc_id.clone(),
+                        target: p_id.clone(),
+                        proto: entry.proto.clone(),
+                        port: entry.local_port,
+                        service: s_local.clone(),
+                        bytes_in: 512,
+                        bytes_out: 512,
+                        rate: 100.0,
+                        packets: 1,
+                        state: Some(entry.state.clone()),
+                        first_seen: now,
+                        last_seen: now,
+                    });
+
+                Some(p_id)
+            } else {
+                None
+            };
 
             // Remote endpoint node if remote IP is not empty or 0.0.0.0
             if !entry.remote_ip.is_empty()
@@ -567,11 +621,12 @@ impl SocketPoller {
                     threat: None,
                 });
 
-                // Link proc -> remote endpoint (aggregate by process + remote IP)
-                let proc_remote_link_id = format!("link:{}->{}", proc_id, remote_id);
+                // Link port -> remote endpoint (or proc -> remote if no port node)
+                let parent_link_node = port_id.as_ref().unwrap_or(&proc_id);
+                let endpoint_link_id = format!("link:{}->{}", parent_link_node, remote_id);
                 let s_remote = classify_service(entry.remote_port);
                 current_links
-                    .entry(proc_remote_link_id.clone())
+                    .entry(endpoint_link_id.clone())
                     .and_modify(|l| {
                         l.bytes_in += 1024;
                         l.bytes_out += 2048;
@@ -579,8 +634,8 @@ impl SocketPoller {
                         l.packets += 2;
                     })
                     .or_insert_with(|| GraphLink {
-                        id: proc_remote_link_id,
-                        source: proc_id.clone(),
+                        id: endpoint_link_id,
+                        source: parent_link_node.clone(),
                         target: remote_id.clone(),
                         proto: entry.proto.clone(),
                         port: entry.remote_port,

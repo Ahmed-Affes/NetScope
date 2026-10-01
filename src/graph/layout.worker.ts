@@ -328,6 +328,7 @@ function configureSimulationForces(mode: string, width: number, height: number) 
             const tgt = typeof link.target === "object" ? link.target.kind : "";
             if (src === "host" || tgt === "host") return 240;
             if (src === "threat" || tgt === "threat") return 210;
+            if (src === "port" || tgt === "port") return 85;
             return 170;
           })
           .strength(0.65)
@@ -336,16 +337,16 @@ function configureSimulationForces(mode: string, width: number, height: number) 
         "charge",
         forceManyBody<WorkerNode>()
           .strength((d) =>
-            d.kind === "host" ? -1200 : d.kind === "threat" ? -750 : d.kind === "process" || d.kind === "docker" ? -600 : -350
+            d.kind === "host" ? -1200 : d.kind === "threat" ? -750 : d.kind === "process" || d.kind === "docker" ? -600 : d.kind === "port" ? -160 : -350
           )
-          .distanceMin(50)
+          .distanceMin(40)
           .distanceMax(650)
       )
       .force("center", forceCenter(cx, cy).strength(0.04))
       .force(
         "collide",
         forceCollide<WorkerNode>()
-          .radius((d) => (d.kind === "host" ? 65 : d.kind === "threat" ? 52 : d.kind === "process" || d.kind === "docker" ? 48 : 38))
+          .radius((d) => (d.kind === "host" ? 65 : d.kind === "threat" ? 52 : d.kind === "process" || d.kind === "docker" ? 48 : d.kind === "port" ? 20 : 38))
           .strength(1.0)
           .iterations(2)
       );
@@ -376,7 +377,7 @@ self.onmessage = (event: MessageEvent) => {
     // Add or update nodes with golden ratio spiral initial layout
     nodes.forEach((n: { id: string; kind: string; x?: number; y?: number }, i: number) => {
       const isHost = n.kind === "host";
-      const radius = isHost ? 26 : n.kind === "process" ? 14 : n.kind === "threat" ? 14 : 10;
+      const radius = isHost ? 26 : n.kind === "process" ? 14 : n.kind === "threat" ? 14 : n.kind === "port" ? 8 : 10;
 
       let existing = nodeMap.get(n.id);
       if (!existing) {

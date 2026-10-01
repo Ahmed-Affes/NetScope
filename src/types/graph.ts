@@ -7,7 +7,8 @@ export type NodeKind =
   | 'tailscale'
   | 'monitor'
   | 'process'
-  | 'threat';
+  | 'threat'
+  | 'port';
 
 export type Severity = 'low' | 'med' | 'high';
 

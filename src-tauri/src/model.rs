@@ -12,6 +12,7 @@ pub enum NodeKind {
     Monitor,
     Process,
     Threat,
+    Port,
 }
 
 #[derive(Serialize, Deserialize, specta::Type, Clone, Debug, PartialEq, Eq)]

@@ -117,7 +117,7 @@ export const CommandPalette: React.FC = () => {
 
             {/* Active Running Apps & Processes */}
             {activeProcesses.length > 0 && (
-              <Command.Group heading="Active Applications & Processes" className="text-[10px] text-fuchsia-400 uppercase tracking-wider px-2 py-1 font-bold">
+              <Command.Group heading="Active Applications & Processes" className="text-[10px] text-sky-400 uppercase tracking-wider px-2 py-1 font-bold">
                 {activeProcesses.slice(0, 15).map((proc) => (
                   <Command.Item
                     key={proc.id}
@@ -130,7 +130,7 @@ export const CommandPalette: React.FC = () => {
                     className="flex items-center justify-between px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 font-mono"
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <Activity className="w-3.5 h-3.5 text-fuchsia-400 shrink-0" />
+                      <Activity className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                       <span className="truncate">{proc.label}</span>
                     </div>
                     {proc.pid && (
@@ -145,7 +145,7 @@ export const CommandPalette: React.FC = () => {
             <Command.Group heading="Tools & Diagnostics" className="text-[10px] text-cyan-400 uppercase tracking-wider px-2 py-1 font-bold">
               <Command.Item
                 onSelect={() => {
-                  openPortInspector();
+                  openPortInspector("table");
                   setOpen(false);
                 }}
                 className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 font-semibold"
@@ -155,13 +155,23 @@ export const CommandPalette: React.FC = () => {
               </Command.Item>
               <Command.Item
                 onSelect={() => {
+                  openPortInspector("tree");
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 font-semibold"
+              >
+                <Layers className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Explore Detailed Process & Port Tree</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => {
                   openSpeedTest();
                   setOpen(false);
                 }}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-fuchsia-500/20 hover:text-fuchsia-300 text-slate-300 font-semibold"
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-sky-500/20 hover:text-sky-300 text-slate-300 font-semibold"
               >
-                <Gauge className="w-3.5 h-3.5 text-fuchsia-400" />
-                <span>Run Real-time Internet Speed Test</span>
+                <Gauge className="w-3.5 h-3.5 text-sky-400" />
+                <span>Run Network Throughput & Latency Diagnostics</span>
               </Command.Item>
             </Command.Group>
 
@@ -298,7 +308,7 @@ export const CommandPalette: React.FC = () => {
                 }}
                 className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
               >
-                <Activity className="w-3.5 h-3.5 text-fuchsia-400" />
+                <Activity className="w-3.5 h-3.5 text-cyan-400" />
                 <span>3D Isometric Layered Mode</span>
               </Command.Item>
             </Command.Group>

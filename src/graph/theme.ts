@@ -10,6 +10,7 @@ export const NODE_COLORS: Record<NodeKind, number> = {
   monitor: 0xfacc15,   // Yellow #facc15
   threat: 0xef4444,    // Red #ef4444
   process: 0xe879f9,   // Pink #e879f9
+  port: 0xfbbf24,      // Amber #fbbf24 (Active Local Ports)
 };
 
 export const PORT_COLORS: Record<number, number> = {
@@ -33,6 +34,7 @@ export function getLinkColor(port: number, proto: string): number {
 
 export function getNodeRadius(kind: NodeKind, bytes: number): number {
   if (kind === "host") return 22;
+  if (kind === "port") return 6;
   const base = kind === "process" || kind === "threat" ? 10 : 7;
   if (bytes <= 0) return base;
   return Math.min(base + Math.log10(bytes + 1) * 1.5, 20);

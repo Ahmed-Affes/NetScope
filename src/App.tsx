@@ -11,12 +11,13 @@ import { UpdateNotification } from "./components/UpdateNotification";
 import { GraphCanvas } from "./components/GraphCanvas";
 import { PortInspectorModal } from "./components/PortInspectorModal";
 import { SpeedTestModal } from "./components/SpeedTestModal";
+import { KillProcessModal } from "./components/KillProcessModal";
 
 import { useNetScopeStore } from "./store/useNetScopeStore";
 import { commands } from "./bindings";
 
 export const App: React.FC = () => {
-  const { setMetrics, openCommandPalette } = useNetScopeStore();
+  const { setMetrics, openCommandPalette, killTarget, closeKillProcess } = useNetScopeStore();
 
   // Load system metrics periodically
   useEffect(() => {
@@ -56,6 +57,7 @@ export const App: React.FC = () => {
         useNetScopeStore.getState().closeCommandPalette();
         useNetScopeStore.getState().closeSpeedTest();
         useNetScopeStore.getState().closePortInspector();
+        useNetScopeStore.getState().closeKillProcess();
       } else if (e.key === "1") {
         useNetScopeStore.getState().setLayoutMode("force");
       } else if (e.key === "2") {
@@ -109,8 +111,8 @@ export const App: React.FC = () => {
           <MetricsPanel />
         </div>
 
-        {/* Right Cyber Dock (Inspector & Security Alerts cleanly stacked, never overlapping) */}
-        <div className="absolute top-14 right-4 z-40 flex flex-col gap-2.5 max-h-[calc(100vh-270px)] overflow-y-auto custom-scrollbar pointer-events-none pr-1">
+        {/* Right Cyber Dock (Inspector & Security Alerts cleanly stacked, bounded width) */}
+        <div className="absolute top-14 right-4 z-40 w-[360px] max-w-[calc(100vw-32px)] flex flex-col items-end gap-2.5 max-h-[calc(100vh-140px)] overflow-y-auto custom-scrollbar pointer-events-none pr-1">
           <InspectorPanel />
           <AlertFeed />
         </div>
@@ -124,6 +126,11 @@ export const App: React.FC = () => {
         <CommandPalette />
         <PortInspectorModal />
         <SpeedTestModal />
+        <KillProcessModal
+          isOpen={Boolean(killTarget)}
+          target={killTarget}
+          onClose={closeKillProcess}
+        />
       </div>
     </div>
   );

@@ -305,8 +305,8 @@ export class GraphEngine {
     // Label Text with sleek dark backing pill
     const labelStyle = new TextStyle({
       fontFamily: "'JetBrains Mono', Consolas, monospace",
-      fontSize: 10,
-      fill: node.kind === "threat" ? "#fca5a5" : "#cbd5e1",
+      fontSize: node.kind === "port" ? 8.5 : 10,
+      fill: node.kind === "threat" ? "#fca5a5" : node.kind === "port" ? "#fde68a" : "#cbd5e1",
       letterSpacing: 0.2,
       fontWeight: node.kind === "host" || node.kind === "threat" ? "bold" : "normal",
     });
@@ -316,14 +316,14 @@ export class GraphEngine {
 
     // Dark pill background behind text for readability over links
     const textWidth = Math.max(labelText.width + 8, 30);
-    const textHeight = 16;
+    const textHeight = node.kind === "port" ? 14 : 16;
     const labelBg = new Graphics();
     labelBg.roundRect(0, 0, textWidth, textHeight, 4);
     labelBg.fill({ color: 0x07090d, alpha: 0.75 });
     labelBg.stroke({
-      color: node.kind === "threat" ? 0xef4444 : 0x334155,
+      color: node.kind === "threat" ? 0xef4444 : node.kind === "port" ? 0xf59e0b : 0x334155,
       width: 1,
-      alpha: 0.4,
+      alpha: node.kind === "port" ? 0.35 : 0.4,
     });
 
     // Make node interactive

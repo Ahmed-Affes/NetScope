@@ -56,10 +56,8 @@ export const TitleBar: React.FC = () => {
       {/* Left: Branding & Mode */}
       <div className="flex items-center gap-3" data-tauri-drag-region>
         <div className="flex items-center gap-2" data-tauri-drag-region>
-          <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-cyan-500 to-fuchsia-500 flex items-center justify-center p-[1px] shadow-[0_0_10px_rgba(34,211,238,0.4)]">
-            <div className="w-full h-full bg-[#07090d] rounded-[5px] flex items-center justify-center">
-              <Activity className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-            </div>
+          <div className="w-6 h-6 rounded-md bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-sm">
+            <Activity className="w-3.5 h-3.5 text-cyan-400" />
           </div>
           <span className="text-xs font-bold tracking-wider text-slate-200">
             NET<span className="text-cyan-400">SCOPE</span>
@@ -129,9 +127,9 @@ export const TitleBar: React.FC = () => {
 
         {/* Active Ports Inspector Button */}
         <button
-          onClick={openPortInspector}
+          onClick={() => openPortInspector()}
           className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:text-cyan-200 text-[10px] font-medium transition-all shadow-sm cursor-pointer"
-          title="Inspect all active PC ports, listening servers, sockets & processes"
+          title="Inspect active ports, listening servers, sockets & detailed process tree"
         >
           <Network className="w-3 h-3 text-cyan-400" />
           <span>Active Ports</span>
@@ -140,10 +138,10 @@ export const TitleBar: React.FC = () => {
         {/* Speed Test Button */}
         <button
           onClick={openSpeedTest}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-fuchsia-500/10 hover:bg-fuchsia-500/20 border border-fuchsia-500/30 text-fuchsia-300 hover:text-fuchsia-200 text-[10px] font-medium transition-all shadow-sm cursor-pointer"
-          title="Run real-time Internet Speed Test (Download, Upload, Ping)"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-300 hover:text-sky-200 text-[10px] font-medium transition-all shadow-sm cursor-pointer"
+          title="Run real-time Network Throughput & Latency Diagnostics"
         >
-          <Gauge className="w-3 h-3 text-fuchsia-400" />
+          <Gauge className="w-3 h-3 text-sky-400" />
           <span>Speed Test</span>
         </button>
 

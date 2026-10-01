@@ -22,6 +22,8 @@ pub fn run() {
         commands::block_remote_ip,
         commands::unblock_remote_ip,
         commands::open_external_url,
+        commands::kill_process,
+        commands::reveal_in_explorer,
     ]);
 
     // bindings.ts is maintained manually in src/bindings.ts

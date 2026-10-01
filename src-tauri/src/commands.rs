@@ -242,3 +242,68 @@ pub fn open_external_url(url: String) -> Result<String, String> {
         Ok(format!("Opened {}", url))
     }
 }
+
+#[tauri::command]
+#[specta::specta]
+pub fn kill_process(pid: u32) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut cmd = std::process::Command::new("taskkill");
+        cmd.args(["/F", "/PID", &pid.to_string()]);
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        let output = cmd.output().map_err(|e| format!("Failed to invoke taskkill: {}", e))?;
+        if output.status.success() {
+            if let Ok(mut guard) = SYSTEM_STATE.lock() {
+                if let Some(ref mut sys) = *guard {
+                    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+                }
+            }
+            Ok(format!("Process {} terminated successfully", pid))
+        } else {
+            let err = String::from_utf8_lossy(&output.stderr);
+            let out = String::from_utf8_lossy(&output.stdout);
+            let msg = if !err.trim().is_empty() {
+                err.trim().to_string()
+            } else if !out.trim().is_empty() {
+                out.trim().to_string()
+            } else {
+                format!("Failed to terminate process PID {}. It may require Administrator privileges or has already exited.", pid)
+            };
+            Err(msg)
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let status = std::process::Command::new("kill")
+            .args(["-9", &pid.to_string()])
+            .status();
+        match status {
+            Ok(s) if s.success() => Ok(format!("Process {} terminated", pid)),
+            Ok(_) => Err(format!("Failed to kill process {}. Check permissions.", pid)),
+            Err(e) => Err(format!("Failed to invoke kill: {}", e)),
+        }
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn reveal_in_explorer(path: String) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut cmd = std::process::Command::new("explorer");
+        cmd.arg(format!("/select,{}", path));
+        cmd.creation_flags(0x08000000);
+        let _ = cmd.spawn();
+        Ok(format!("Opened {}", path))
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = std::process::Command::new("xdg-open").arg(&path).spawn();
+        Ok(format!("Opened {}", path))
+    }
+}
+
