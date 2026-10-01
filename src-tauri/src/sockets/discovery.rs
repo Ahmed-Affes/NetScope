@@ -298,28 +298,39 @@ pub fn sweep_local_subnet(local_ipv4: Ipv4Addr) -> Vec<LanDevice> {
 
     let now = crate::sockets::now_ms();
 
-    for chunk in chunks {
+    for chunk in chunks {   
         let tx_clone = tx.clone();
         handles.push(std::thread::spawn(move || {
             for last in chunk {
                 let target_ip = Ipv4Addr::new(base[0], base[1], base[2], last);
                 let target_u32 = u32::from_ne_bytes(target_ip.octets());
-                let mut mac = [0u8; 6];
+                // Win32 SendARP requires pMacAddr to point to at least two ULONGs (8 bytes)
+                let mut mac_buf = [0u32; 2];
                 let mut mac_len = 6u32;
-                let res = unsafe { SendARP(target_u32, local_u32, mac.as_mut_ptr(), &mut mac_len) };
-                if res == 0 && mac_len == 6 && mac != [0; 6] {
-                    let mac_str = format!(
-                        "{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
-                        mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]
-                    );
-                    let vendor = lookup_mac_vendor(&mac_str);
-                    let _ = tx_clone.send(LanDevice {
-                        ip: target_ip.to_string(),
-                        mac: Some(mac_str),
-                        vendor,
-                        hostname: None,
-                        last_seen: now,
-                    });
+                let res = unsafe {
+                    SendARP(
+                        target_u32,
+                        local_u32,
+                        mac_buf.as_mut_ptr() as *mut u8,
+                        &mut mac_len,
+                    )
+                };
+                if res == 0 && mac_len >= 6 {
+                    let mac = unsafe { std::slice::from_raw_parts(mac_buf.as_ptr() as *const u8, 6) };
+                    if mac != [0; 6] {
+                        let mac_str = format!(
+                            "{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+                            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]
+                        );
+                        let vendor = lookup_mac_vendor(&mac_str);
+                        let _ = tx_clone.send(LanDevice {
+                            ip: target_ip.to_string(),
+                            mac: Some(mac_str),
+                            vendor,
+                            hostname: None,
+                            last_seen: now,
+                        });
+                    }
                 }
             }
         }));

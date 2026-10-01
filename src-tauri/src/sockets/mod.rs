@@ -48,7 +48,8 @@ pub struct SocketPoller {
     last_proc_refresh: u64,
     last_arp_refresh: u64,
     cached_gateways: HashSet<IpAddr>,
-    cached_lan_devices: Vec<LanDevice>,
+    cached_lan_devices: Arc<Mutex<Vec<LanDevice>>>,
+    lan_sweep_in_progress: Arc<std::sync::atomic::AtomicBool>,
     dns_resolver: DnsResolver,
     threat_engine: ThreatEngine,
     etw_tracker: EtwTrafficTracker,
@@ -81,7 +82,8 @@ impl SocketPoller {
             last_proc_refresh: now_ms(),
             last_arp_refresh: 0,
             cached_gateways,
-            cached_lan_devices: Vec::new(),
+            cached_lan_devices: Arc::new(Mutex::new(Vec::new())),
+            lan_sweep_in_progress: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             dns_resolver: DnsResolver::new(),
             threat_engine,
             etw_tracker,
@@ -231,28 +233,39 @@ impl SocketPoller {
         entries
     }
 
-    /// Discovers active LAN devices using light SendARP sweep + reverse DNS
-    pub fn scan_lan_neighbors(&mut self) -> &[LanDevice] {
+    /// Discovers active LAN devices using light SendARP sweep + reverse DNS.
+    /// Runs asynchronously in a background thread so the 1 Hz poller never stalls.
+    pub fn scan_lan_neighbors(&mut self) -> Vec<LanDevice> {
         let now = now_ms();
-        if now.saturating_sub(self.last_arp_refresh) < 180_000
-            && !self.cached_lan_devices.is_empty()
-        {
-            return &self.cached_lan_devices;
-        }
+        let should_sweep = now.saturating_sub(self.last_arp_refresh) >= 180_000
+            || self.last_arp_refresh == 0;
 
-        if let Some(local_ip) = self.local_ipv4 {
-            let mut discovered = sweep_local_subnet(local_ip);
-            // Resolve hostnames for discovered devices
-            for dev in &mut discovered {
-                if let Some(name) = self.dns_resolver.get_or_resolve(&dev.ip) {
-                    dev.hostname = Some(name);
-                }
+        if should_sweep && !self.lan_sweep_in_progress.load(std::sync::atomic::Ordering::Relaxed) {
+            if let Some(local_ip) = self.local_ipv4 {
+                self.last_arp_refresh = now;
+                self.lan_sweep_in_progress.store(true, std::sync::atomic::Ordering::Relaxed);
+                let flag = self.lan_sweep_in_progress.clone();
+                let cache_arc = self.cached_lan_devices.clone();
+                let dns = self.dns_resolver.clone();
+                std::thread::Builder::new()
+                    .name("netscope-lan-sweep".into())
+                    .spawn(move || {
+                        let mut discovered = sweep_local_subnet(local_ip);
+                        for dev in &mut discovered {
+                            if let Some(name) = dns.get_or_resolve(&dev.ip) {
+                                dev.hostname = Some(name);
+                            }
+                        }
+                        if let Ok(mut guard) = cache_arc.lock() {
+                            *guard = discovered;
+                        }
+                        flag.store(false, std::sync::atomic::Ordering::Relaxed);
+                    })
+                    .ok();
             }
-            self.cached_lan_devices = discovered;
-            self.last_arp_refresh = now;
         }
 
-        &self.cached_lan_devices
+        self.cached_lan_devices.lock().map(|g| g.clone()).unwrap_or_default()
     }
 
     pub fn poll_and_compute_delta(&mut self) -> GraphDelta {
@@ -340,7 +353,7 @@ impl SocketPoller {
         }
 
         // 3. Add Discovered LAN Devices
-        let lan_devs = self.scan_lan_neighbors().to_vec();
+        let lan_devs = self.scan_lan_neighbors();
         for dev in lan_devs {
             let dev_id = format!("lan:{}", dev.ip);
             let dev_label = dev
