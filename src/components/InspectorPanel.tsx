@@ -5,7 +5,9 @@ import {
   Ban,
   Check,
   Copy,
+  Crosshair,
   FolderOpen,
+  Info,
   Network,
   Shield,
   ShieldCheck,
@@ -15,6 +17,104 @@ import {
 import { Sparkline } from "./Sparkline";
 import { commands, SocketInfo } from "../bindings";
 import { isCriticalProcess, getCriticalProcessReason } from "../utils/processSafety";
+import { GraphNode, GraphLink } from "../types/graph";
+
+function getPlainLanguageSummary(
+  node: GraphNode,
+  links: Record<string, GraphLink>,
+  procSockets: SocketInfo[]
+): {
+  whatItIs: string;
+  whereItConnects: string;
+  listeningPorts: string;
+  connectionCount: number;
+} {
+  const nodeLinks = Object.values(links).filter(
+    (l) => l.source === node.id || l.target === node.id
+  );
+  const connectionCount = nodeLinks.length;
+
+  let whatItIs: string;
+  const labelLower = node.label.toLowerCase();
+
+  if (node.kind === "host") {
+    whatItIs = "Your local PC host interface managing network adapters and routing.";
+  } else if (node.kind === "gateway") {
+    whatItIs = "Default network gateway router providing local subnet routing and internet access.";
+  } else if (node.kind === "lan") {
+    whatItIs = node.org
+      ? `Local network device (${node.org}) discovered on your Wi-Fi/Ethernet subnet.`
+      : "Local network device discovered on your physical Wi-Fi/Ethernet subnet.";
+  } else if (node.kind === "tailscale") {
+    whatItIs = "Tailscale encrypted mesh VPN peer communicating directly with your PC.";
+  } else if (node.kind === "docker") {
+    whatItIs = "Containerized virtual network bridge or Docker container endpoint.";
+  } else if (node.kind === "monitor") {
+    whatItIs = "Observability service providing telemetry or system monitoring.";
+  } else if (node.kind === "threat") {
+    whatItIs = "Security anomaly detected by NetScope threat inspection rules.";
+  } else if (node.id.startsWith("cluster:")) {
+    whatItIs = `Aggregated group of external endpoints sharing ${node.org || "the same domain"}. Click to expand/collapse.`;
+  } else if (node.kind === "internet") {
+    whatItIs = node.org
+      ? `Remote public internet server operated by ${node.org}.`
+      : "Remote public internet host or web service.";
+  } else if (node.kind === "port") {
+    whatItIs = `Active listening service socket bound to port ${node.label}.`;
+  } else {
+    if (labelLower.includes("chrome") || labelLower.includes("msedge") || labelLower.includes("firefox")) {
+      whatItIs = "Web browser actively fetching websites, APIs, and media streams.";
+    } else if (labelLower.includes("code") || labelLower.includes("cursor") || labelLower.includes("antigravity")) {
+      whatItIs = "Development IDE communicating with local language servers and cloud APIs.";
+    } else if (labelLower.includes("ollama")) {
+      whatItIs = "Local AI Large Language Model server handling model inference requests.";
+    } else if (labelLower.includes("neo4j")) {
+      whatItIs = "Graph database server hosting graph data and Cypher query endpoints.";
+    } else if (labelLower.includes("discord")) {
+      whatItIs = "Voice and chat communications application communicating with Discord gateways.";
+    } else if (labelLower.includes("spotify")) {
+      whatItIs = "Digital music streaming application streaming audio tracks.";
+    } else if (labelLower.includes("steam")) {
+      whatItIs = "Gaming client communicating with game servers and Steam networks.";
+    } else if (labelLower.includes("svchost")) {
+      whatItIs = "Windows Service Host running background OS network services.";
+    } else {
+      whatItIs = "Application or background process actively running on your PC.";
+    }
+  }
+
+  let whereItConnects: string;
+  if (connectionCount === 0) {
+    whereItConnects = "No active network links established at this moment.";
+  } else {
+    const remoteDestinations = new Set<string>();
+    for (const l of nodeLinks) {
+      if (l.service) {
+        remoteDestinations.add(l.service.toUpperCase());
+      } else if (l.port) {
+        remoteDestinations.add(`:${l.port}`);
+      }
+    }
+    const sample = Array.from(remoteDestinations).slice(0, 3).join(", ");
+    whereItConnects = `Active on ${connectionCount} link${connectionCount > 1 ? "s" : ""} (${sample}${
+      remoteDestinations.size > 3 ? "..." : ""
+    }).`;
+  }
+
+  let listeningPorts: string;
+  const boundListeners = procSockets.filter((s) => s.state?.toUpperCase() === "LISTEN");
+  if (boundListeners.length > 0) {
+    listeningPorts = `Listening on: ${boundListeners.map((s) => `:${s.localPort} (${s.proto})`).join(", ")}`;
+  } else if (node.kind === "port") {
+    listeningPorts = `Listening port ${node.label}`;
+  } else if (node.kind === "process") {
+    listeningPorts = "Client-only (no open listening server ports)";
+  } else {
+    listeningPorts = "N/A";
+  }
+
+  return { whatItIs, whereItConnects, listeningPorts, connectionCount };
+}
 
 export const InspectorPanel: React.FC = () => {
   const {
@@ -39,6 +139,10 @@ export const InspectorPanel: React.FC = () => {
 
   const selectedNode = selectedNodeId ? nodes[selectedNodeId] : null;
   const selectedLink = selectedLinkId ? links[selectedLinkId] : null;
+
+  const summary = selectedNode
+    ? getPlainLanguageSummary(selectedNode, links, procSockets)
+    : null;
 
   // Reset states and fetch process sockets on selection change
   useEffect(() => {
@@ -159,6 +263,48 @@ export const InspectorPanel: React.FC = () => {
               </span>
             </div>
           </div>
+
+          {/* Plain-Language Summary & Quick Actions */}
+          {summary && (
+            <div className="p-2.5 rounded bg-cyan-950/20 border border-cyan-500/20 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-cyan-400 font-semibold text-[10px] uppercase tracking-wider">
+                  <Info className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Plain-Language Summary</span>
+                </span>
+                <button
+                  onClick={() => {
+                    setActiveFilter(null);
+                    setSearchQuery(selectedNode.label);
+                  }}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-[9px] font-sans font-semibold transition-colors cursor-pointer"
+                  title="Isolate and focus this entity on the topology map"
+                >
+                  <Crosshair className="w-2.5 h-2.5 text-cyan-400" />
+                  <span>Focus</span>
+                </button>
+              </div>
+
+              <div className="space-y-1.5 text-[11px] leading-relaxed">
+                <div>
+                  <span className="text-slate-400 text-[9px] uppercase font-bold block">What it is</span>
+                  <p className="text-slate-200">{summary.whatItIs}</p>
+                </div>
+
+                <div>
+                  <span className="text-slate-400 text-[9px] uppercase font-bold block">Where it connects</span>
+                  <p className="text-slate-300 font-mono text-[10px]">{summary.whereItConnects}</p>
+                </div>
+
+                {summary.listeningPorts !== "N/A" && (
+                  <div>
+                    <span className="text-slate-400 text-[9px] uppercase font-bold block">Listening Ports</span>
+                    <p className="text-slate-300 font-mono text-[10px]">{summary.listeningPorts}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Executable Path - Compact, bounded, non-breaking layout */}
           {selectedNode.exePath && (

@@ -32,10 +32,9 @@ export function getLinkColor(port: number, proto: string): number {
   return DEFAULT_TCP_COLOR;
 }
 
-export function getNodeRadius(kind: NodeKind, bytes: number): number {
+export function getNodeRadius(kind: NodeKind, connectionCount: number): number {
   if (kind === "host") return 22;
-  if (kind === "port") return 6;
-  const base = kind === "process" || kind === "threat" ? 10 : 7;
-  if (bytes <= 0) return base;
-  return Math.min(base + Math.log10(bytes + 1) * 1.5, 20);
+  if (kind === "port") return Math.min(6 + connectionCount * 0.8, 14);
+  const base = kind === "process" || kind === "threat" ? 11 : 7;
+  return Math.min(base + connectionCount * 1.4, 24);
 }

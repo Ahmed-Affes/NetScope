@@ -12,6 +12,7 @@ import { GraphCanvas } from "./components/GraphCanvas";
 import { PortInspectorModal } from "./components/PortInspectorModal";
 import { SpeedTestModal } from "./components/SpeedTestModal";
 import { KillProcessModal } from "./components/KillProcessModal";
+import { OnboardingModal } from "./components/OnboardingModal";
 
 import { useNetScopeStore } from "./store/useNetScopeStore";
 import { commands } from "./bindings";
@@ -133,6 +134,7 @@ export const App: React.FC = () => {
         <CommandPalette />
         <PortInspectorModal />
         <SpeedTestModal />
+        <OnboardingModal />
         <KillProcessModal
           isOpen={Boolean(killTarget)}
           target={killTarget}

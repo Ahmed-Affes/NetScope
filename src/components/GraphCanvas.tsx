@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { GraphEngine } from "../graph/GraphEngine";
 import { LiveSource } from "../sources/live";
 import { TrafficSource, GraphNode, GraphLink } from "../types/graph";
@@ -6,6 +6,130 @@ import { useNetScopeStore } from "../store/useNetScopeStore";
 import { Activity, Wifi, WifiOff } from "lucide-react";
 
 type LoadState = "loading" | "ok" | "empty";
+
+function extractDomain(hostname?: string): string | null {
+  if (!hostname) return null;
+  const parts = hostname.toLowerCase().split(".");
+  if (parts.length >= 2) {
+    return parts.slice(-2).join(".");
+  }
+  return hostname;
+}
+
+function applyOverviewAggregation(
+  nodesList: GraphNode[],
+  linksList: GraphLink[],
+  viewMode: "overview" | "all",
+  expandedClusters: Set<string>
+): { nodes: GraphNode[]; links: GraphLink[] } {
+  if (viewMode === "all") {
+    return { nodes: nodesList, links: linksList };
+  }
+
+  // In overview mode: aggregate remote internet endpoints
+  const internetNodes = nodesList.filter((n) => n.kind === "internet");
+  const nonInternetNodes = nodesList.filter((n) => n.kind !== "internet");
+
+  // Group internet nodes by org, root domain, or /24 subnet
+  const groups = new Map<string, { title: string; nodes: GraphNode[] }>();
+
+  for (const n of internetNodes) {
+    let key: string;
+    let title: string;
+
+    if (n.org && n.org.trim()) {
+      key = `cluster:org:${n.org.trim().toLowerCase()}`;
+      title = n.org.trim();
+    } else {
+      const dom = extractDomain(n.hostname);
+      if (dom) {
+        key = `cluster:domain:${dom}`;
+        title = dom;
+      } else if (n.ip) {
+        const octets = n.ip.split(".");
+        if (octets.length === 4) {
+          const subnet = `${octets[0]}.${octets[1]}.${octets[2]}.0/24`;
+          key = `cluster:subnet:${subnet}`;
+          title = `Subnet ${subnet}`;
+        } else {
+          key = `cluster:ip:${n.ip}`;
+          title = n.ip;
+        }
+      } else {
+        key = `cluster:other`;
+        title = "External Cloud";
+      }
+    }
+
+    const cur = groups.get(key) || { title, nodes: [] };
+    cur.nodes.push(n);
+    groups.set(key, cur);
+  }
+
+  const finalNodes: GraphNode[] = [...nonInternetNodes];
+  const remappedNodeId = new Map<string, string>(); // oldId -> clusterId
+
+  for (const [key, grp] of groups.entries()) {
+    // If only 1 or 2 nodes in the group, or if user expanded this cluster, keep them individual
+    if (grp.nodes.length < 3 || expandedClusters.has(key)) {
+      finalNodes.push(...grp.nodes);
+    } else {
+      // Create aggregated cluster node
+      const members = grp.nodes;
+      for (const m of members) {
+        remappedNodeId.set(m.id, key);
+      }
+
+      const totalBytesIn = members.reduce((sum, m) => sum + (m.bytesIn || 0), 0);
+      const totalBytesOut = members.reduce((sum, m) => sum + (m.bytesOut || 0), 0);
+      const totalRateIn = members.reduce((sum, m) => sum + (m.rateIn || 0), 0);
+      const totalRateOut = members.reduce((sum, m) => sum + (m.rateOut || 0), 0);
+      const minFirstSeen = Math.min(...members.map((m) => m.firstSeen || Date.now()));
+      const maxLastSeen = Math.max(...members.map((m) => m.lastSeen || Date.now()));
+
+      finalNodes.push({
+        id: key,
+        kind: "internet",
+        label: `${grp.title} (${members.length})`,
+        org: grp.title,
+        bytesIn: totalBytesIn,
+        bytesOut: totalBytesOut,
+        rateIn: totalRateIn,
+        rateOut: totalRateOut,
+        firstSeen: minFirstSeen,
+        lastSeen: maxLastSeen,
+      });
+    }
+  }
+
+  // Rewire and deduplicate links
+  const linkKeyMap = new Map<string, GraphLink>();
+  for (const l of linksList) {
+    const src = remappedNodeId.get(l.source) || l.source;
+    const tgt = remappedNodeId.get(l.target) || l.target;
+
+    // Skip self-loops within cluster
+    if (src === tgt) continue;
+
+    const dedupeKey = `${src}->${tgt}:${l.port}:${l.proto}`;
+    const existing = linkKeyMap.get(dedupeKey);
+    if (existing) {
+      existing.packets += l.packets;
+      existing.bytesIn += l.bytesIn;
+      existing.bytesOut += l.bytesOut;
+      existing.rate += l.rate;
+    } else {
+      linkKeyMap.set(dedupeKey, {
+        ...l,
+        id: `link:${dedupeKey}`,
+        source: src,
+        target: tgt,
+      });
+    }
+  }
+
+  return { nodes: finalNodes, links: Array.from(linkKeyMap.values()) };
+}
 
 function filterTopology(
   nodesList: GraphNode[],
@@ -28,8 +152,7 @@ function filterTopology(
           (portNum === 443 && l.service?.toLowerCase() === "https") ||
           (portNum === 53 && l.service?.toLowerCase() === "dns") ||
           (portNum === 11434 && l.service?.toLowerCase() === "ollama") ||
-          (portNum === 7474 && l.service?.toLowerCase() === "neo4j") ||
-          (portNum === 8000 && l.service?.toLowerCase() === "kruel")
+          (portNum === 7474 && l.service?.toLowerCase() === "neo4j")
       );
       const connectedIds = new Set(matchedLinks.flatMap((l) => [l.source, l.target]));
       matchedNodes = nodesList.filter((n) => connectedIds.has(n.id));
@@ -104,7 +227,6 @@ function filterTopology(
 
     // Find nodes that directly match the query
     const directlyMatchedNodes = matchedNodes.filter((n) => {
-      // 1. Text & App names (e.g. "chrome", "discord", "ArmouryCrate", "steam")
       if (n.label.toLowerCase().includes(q)) return true;
       if (n.id.toLowerCase().includes(q)) return true;
       if (n.exePath && n.exePath.toLowerCase().includes(q)) return true;
@@ -115,7 +237,6 @@ function filterTopology(
       if (n.org && n.org.toLowerCase().includes(q)) return true;
       if (n.pid !== undefined && String(n.pid).includes(q)) return true;
 
-      // 2. Kind & Category aliases
       if ((q === "port" || q === "ports" || q === "socket" || q === "sockets" || q === "listen" || q === "listening") && n.kind === "port") return true;
       if ((q === "router" || q === "gateway" || q === "modem") && n.kind === "gateway") return true;
       if ((q === "pc" || q === "host" || q === "computer" || q === "laptop" || q === "desktop" || q === "me") && n.kind === "host") return true;
@@ -128,9 +249,6 @@ function filterTopology(
       return false;
     });
 
-    // Combine connected context so the user gets the full tree:
-    // If an app/process matched (e.g. Antigravity), include all its bound ports AND any remote IPs!
-    // If a port/link matched (e.g. 5173), include the parent app/process and host!
     const matchedNodeIdSet = new Set(directlyMatchedNodes.map((n) => n.id));
     const finalLinkSet = new Set<GraphLink>(directlyMatchedLinks);
     const finalNodeIdSet = new Set<string>(matchedNodeIdSet);
@@ -178,8 +296,46 @@ export const GraphCanvas: React.FC = () => {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [nodeCount, setNodeCount] = useState(0);
 
-  const { selectNode, selectLink, applyDelta, layoutMode } =
-    useNetScopeStore();
+  const {
+    selectNode,
+    selectLink,
+    selectedNodeId,
+    applyDelta,
+    layoutMode,
+    viewMode,
+    expandedClusters,
+    toggleCluster,
+    activeFilter,
+    searchQuery,
+    graphVersion,
+    nodes,
+    links,
+  } = useNetScopeStore();
+
+  // Compute top active services from all unfiltered links for quick recovery in empty state
+  const activeServiceSuggestions = useMemo(() => {
+    const allLinks = Object.values(links);
+    const serviceCounts = new Map<string, { label: string; filter: string; count: number }>();
+    for (const l of allLinks) {
+      if (l.port && l.port > 0) {
+        const label = l.service ? `${l.service.toUpperCase()} (${l.port})` : `Port ${l.port}`;
+        const filter = `port:${l.port}`;
+        const cur = serviceCounts.get(filter) || { label, filter, count: 0 };
+        cur.count += 1;
+        serviceCounts.set(filter, cur);
+      }
+    }
+    return Array.from(serviceCounts.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4);
+  }, [links]);
+
+  // Sync selectedNodeId with engine for LOD highlighting
+  useEffect(() => {
+    if (engineRef.current) {
+      engineRef.current.setSelectedNode(selectedNodeId);
+    }
+  }, [selectedNodeId]);
 
   // Initialize Engine & Source once
   useEffect(() => {
@@ -189,15 +345,18 @@ export const GraphCanvas: React.FC = () => {
     setLoadState("loading");
 
     const engine = new GraphEngine(containerRef.current, {
-      onSelectNode: (id) => selectNode(id),
+      onSelectNode: (id) => {
+        if (id && id.startsWith("cluster:")) {
+          toggleCluster(id);
+        }
+        selectNode(id);
+      },
       onSelectLink: (id) => selectLink(id),
     });
     engineRef.current = engine;
 
     const source: TrafficSource = new LiveSource();
     sourceRef.current = source;
-
-    let lastThreatAnalysis = 0;
 
     engine.init().then(async () => {
       if (!mounted) return;
@@ -224,13 +383,20 @@ export const GraphCanvas: React.FC = () => {
         currentStore.searchQuery
       );
 
-      engine.updateGraph(filteredNodes, filteredLinks, currentStore.layoutMode);
+      const aggregated = applyOverviewAggregation(
+        filteredNodes,
+        filteredLinks,
+        currentStore.viewMode,
+        currentStore.expandedClusters
+      );
+
+      engine.updateGraph(aggregated.nodes, aggregated.links, currentStore.layoutMode);
 
       const hasConstraint = Boolean(
         currentStore.activeFilter ||
           (currentStore.searchQuery && currentStore.searchQuery.trim())
       );
-      const activeCount = hasConstraint ? filteredNodes.length : snapshot.nodes.length;
+      const activeCount = hasConstraint ? aggregated.nodes.length : snapshot.nodes.length;
       setNodeCount(activeCount);
       setLoadState(activeCount === 0 ? "empty" : "ok");
 
@@ -250,17 +416,24 @@ export const GraphCanvas: React.FC = () => {
           storeNow.searchQuery
         );
 
+        const nextAggregated = applyOverviewAggregation(
+          nextNodes,
+          nextLinks,
+          storeNow.viewMode,
+          storeNow.expandedClusters
+        );
+
         const constraintNow = Boolean(
           storeNow.activeFilter ||
             (storeNow.searchQuery && storeNow.searchQuery.trim())
         );
-        const countNow = constraintNow ? nextNodes.length : nodesList.length;
+        const countNow = constraintNow ? nextAggregated.nodes.length : nodesList.length;
         setNodeCount(countNow);
         setLoadState(countNow === 0 ? "empty" : "ok");
 
         engine.updateGraph(
-          nextNodes,
-          nextLinks,
+          nextAggregated.nodes,
+          nextAggregated.links,
           storeNow.layoutMode,
           delta.nodePositions
         );
@@ -275,9 +448,7 @@ export const GraphCanvas: React.FC = () => {
       engine.destroy();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [applyDelta, selectNode, selectLink]);
-
-  const { activeFilter, searchQuery, graphVersion } = useNetScopeStore();
+  }, [applyDelta, selectNode, selectLink, toggleCluster]);
 
   // Handle smooth layout mode, filter, and store delta transitions reactively
   useEffect(() => {
@@ -293,16 +464,23 @@ export const GraphCanvas: React.FC = () => {
         searchQuery
       );
 
+      const aggregated = applyOverviewAggregation(
+        filteredNodes,
+        filteredLinks,
+        viewMode,
+        expandedClusters
+      );
+
       const hasConstraint = Boolean(
         activeFilter || (searchQuery && searchQuery.trim())
       );
-      const activeCount = hasConstraint ? filteredNodes.length : nodesList.length;
+      const activeCount = hasConstraint ? aggregated.nodes.length : nodesList.length;
       setNodeCount(activeCount);
       setLoadState(activeCount === 0 ? "empty" : "ok");
 
-      engineRef.current.updateGraph(filteredNodes, filteredLinks, layoutMode);
+      engineRef.current.updateGraph(aggregated.nodes, aggregated.links, layoutMode);
     }
-  }, [layoutMode, activeFilter, searchQuery, graphVersion]);
+  }, [layoutMode, viewMode, expandedClusters, activeFilter, searchQuery, graphVersion]);
 
   return (
     <div className="absolute inset-0 z-0 w-full h-full overflow-hidden">
@@ -330,37 +508,62 @@ export const GraphCanvas: React.FC = () => {
         </div>
       )}
 
-      {/* Empty state */}
-      {/* Empty / Error state */}
+      {/* Empty / Zero-filter recovery state */}
       {loadState === "empty" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <div className="flex flex-col items-center gap-4 bg-[#0b1120]/90 backdrop-blur-sm border border-slate-700/50 rounded-xl px-10 py-8 shadow-lg max-w-md text-center pointer-events-auto">
+          <div className="flex flex-col items-center gap-4 bg-[#0b1120]/95 backdrop-blur-md border border-slate-700/60 rounded-xl px-8 py-7 shadow-2xl max-w-md text-center pointer-events-auto">
             {activeFilter || (searchQuery && searchQuery.trim()) ? (
               <>
-                <Wifi className="w-10 h-10 text-slate-500 opacity-60" />
-                <div>
-                  <p className="text-slate-300 font-semibold text-sm tracking-wider mb-1">
-                    NO NODES MATCH FILTER
+                <Wifi className="w-9 h-9 text-cyan-500/70" />
+                <div className="space-y-1.5">
+                  <p className="text-slate-200 font-bold text-sm tracking-wider uppercase">
+                    No Nodes Match Filter
                   </p>
-                  <p className="text-slate-400 text-xs leading-relaxed">
-                    {activeFilter
-                      ? `No active "${activeFilter}" traffic or nodes currently in your PC topology.`
+                  <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
+                    {activeFilter?.startsWith("port:")
+                      ? `No traffic matching ${activeFilter} is active on your PC right now.`
+                      : activeFilter
+                      ? `No active "${activeFilter}" nodes in your topology.`
                       : `No nodes match "${searchQuery}".`}
-                    <br />
-                    <span className="text-slate-500 text-[11px]">
-                      Try clearing the filter or search query.
-                    </span>
                   </p>
+
+                  {activeServiceSuggestions.length > 0 && (
+                    <div className="pt-2">
+                      <p className="text-[11px] text-slate-400 mb-2 font-mono">
+                        {activeServiceSuggestions.length} services active right now:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 justify-center">
+                        {activeServiceSuggestions.map((s) => (
+                          <button
+                            key={s.filter}
+                            onClick={() => {
+                              useNetScopeStore.getState().setActiveFilter(s.filter);
+                              useNetScopeStore.getState().setSearchQuery("");
+                            }}
+                            className="px-2.5 py-1 rounded bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-xs font-mono transition-colors cursor-pointer flex items-center gap-1.5"
+                          >
+                            <span>{s.label}</span>
+                            <span className="text-[10px] text-cyan-400/80 font-bold">
+                              ({s.count})
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <button
-                  onClick={() => {
-                    useNetScopeStore.getState().setActiveFilter(null);
-                    useNetScopeStore.getState().setSearchQuery("");
-                  }}
-                  className="px-3.5 py-1.5 text-xs rounded bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30 transition-colors cursor-pointer font-semibold shadow-sm"
-                >
-                  Clear Filter
-                </button>
+
+                <div className="pt-2">
+                  <button
+                    onClick={() => {
+                      useNetScopeStore.getState().setActiveFilter(null);
+                      useNetScopeStore.getState().setSearchQuery("");
+                    }}
+                    className="px-4 py-1.5 text-xs rounded bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-slate-300 hover:text-white transition-colors cursor-pointer font-semibold shadow-sm"
+                  >
+                    Clear Filter
+                  </button>
+                </div>
               </>
             ) : (
               <>
@@ -380,26 +583,8 @@ export const GraphCanvas: React.FC = () => {
                     </li>
                   </ul>
                 </div>
-                <div className="flex gap-2 pointer-events-auto mt-1">
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="px-3 py-1.5 text-xs rounded bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30 transition-colors"
-                  >
-                    Rescan Sockets
-                  </button>
-                </div>
               </>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Live node count badge */}
-      {loadState === "ok" && nodeCount > 0 && (
-        <div className="absolute bottom-4 left-4 pointer-events-none">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            {nodeCount} nodes · LIVE
           </div>
         </div>
       )}

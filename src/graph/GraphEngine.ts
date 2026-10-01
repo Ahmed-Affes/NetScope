@@ -56,12 +56,17 @@ export class GraphEngine {
 
   // Interaction
   private hoveredNodeId: string | null = null;
+  private selectedNodeId: string | null = null;
   private draggedNodeId: string | null = null;
   private isDestroyed = false;
   private isInitialized = false;
 
   public get ready(): boolean {
     return this.isInitialized && !this.isDestroyed;
+  }
+
+  public setSelectedNode(nodeId: string | null): void {
+    this.selectedNodeId = nodeId;
   }
 
   constructor(element: HTMLElement, options: GraphEngineOptions = {}) {
@@ -236,9 +241,17 @@ export class GraphEngine {
       }
     }
 
+    // Count connection degrees for node sizing
+    const connectionCounts = new Map<string, number>();
+    for (const l of links) {
+      connectionCounts.set(l.source, (connectionCounts.get(l.source) || 0) + 1);
+      connectionCounts.set(l.target, (connectionCounts.get(l.target) || 0) + 1);
+    }
+
     for (const n of nodes) {
+      const connCount = connectionCounts.get(n.id) || 1;
       if (!this.nodesMap.has(n.id)) {
-        const renderNode = this.createNodeSprite(n);
+        const renderNode = this.createNodeSprite(n, connCount);
         this.nodesMap.set(n.id, renderNode);
         this.nodesContainer.addChild(renderNode.container);
         this.labelsContainer.addChild(renderNode.labelBg);
@@ -246,6 +259,7 @@ export class GraphEngine {
       } else {
         const rn = this.nodesMap.get(n.id)!;
         rn.data = n;
+        rn.radius = getNodeRadius(n.kind, connCount);
       }
     }
 
@@ -278,10 +292,10 @@ export class GraphEngine {
     }
   }
 
-  private createNodeSprite(node: GraphNode): RenderNode {
+  private createNodeSprite(node: GraphNode, connectionCount: number): RenderNode {
     const container = new Container();
     const color = NODE_COLORS[node.kind] || 0x60a5fa;
-    const radius = getNodeRadius(node.kind, node.bytesIn + node.bytesOut);
+    const radius = getNodeRadius(node.kind, connectionCount);
 
     // Crisp neon halo (subtle, clean, not overblown)
     const glowRadius = radius * 1.6;
@@ -426,12 +440,24 @@ export class GraphEngine {
       });
     }
 
-    // 2. Dim/Brighten Nodes
+    // 2. Dim/Brighten Nodes & Level of Detail (LOD) for Labels
+    const isZoomedIn = this.zoom >= 1.35;
     for (const [id, rn] of this.nodesMap.entries()) {
       const isConnected = !isHoverActive || connectedNodeIds.has(id);
       rn.container.alpha = isConnected ? 1.0 : 0.15;
-      rn.labelText.alpha = isConnected ? (isHoverActive ? 1.0 : 0.85) : 0.15;
-      rn.labelBg.alpha = isConnected ? (isHoverActive ? 0.9 : 0.7) : 0.1;
+
+      const isLarge = rn.radius >= 14 || rn.data.kind === "host" || rn.data.kind === "threat";
+      const isHovered = id === this.hoveredNodeId;
+      const isSelected = id === this.selectedNodeId;
+      const showLabel = isZoomedIn || isLarge || isHovered || isSelected;
+
+      rn.labelText.visible = showLabel;
+      rn.labelBg.visible = showLabel;
+
+      if (showLabel) {
+        rn.labelText.alpha = isConnected ? (isHoverActive ? 1.0 : 0.85) : 0.15;
+        rn.labelBg.alpha = isConnected ? (isHoverActive ? 0.9 : 0.7) : 0.1;
+      }
 
       // Pulse red threat nodes
       if (rn.data.kind === "threat") {

@@ -25,6 +25,8 @@ interface NetScopeState {
   searchQuery: string;
   activeFilter: string | null;
   layoutMode: "force" | "radial" | "geo" | "3d";
+  viewMode: "overview" | "all";
+  expandedClusters: Set<string>;
   graphVersion: number;
   isElevated: boolean;
 
@@ -47,6 +49,8 @@ interface NetScopeState {
   setSearchQuery: (query: string) => void;
   setActiveFilter: (filter: string | null) => void;
   setLayoutMode: (mode: "force" | "radial" | "geo" | "3d") => void;
+  setViewMode: (mode: "overview" | "all") => void;
+  toggleCluster: (clusterId: string) => void;
   clearGraph: () => void;
 }
 
@@ -84,6 +88,8 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
   searchQuery: "",
   activeFilter: null,
   layoutMode: "force",
+  viewMode: "overview",
+  expandedClusters: new Set<string>(),
   graphVersion: 0,
   isElevated: false,
 
@@ -184,6 +190,17 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
     })),
 
   setLayoutMode: (mode) => set({ layoutMode: mode }),
+  setViewMode: (mode) => set((state) => ({ viewMode: mode, graphVersion: state.graphVersion + 1 })),
+  toggleCluster: (clusterId) =>
+    set((state) => {
+      const next = new Set(state.expandedClusters);
+      if (next.has(clusterId)) {
+        next.delete(clusterId);
+      } else {
+        next.add(clusterId);
+      }
+      return { expandedClusters: next, graphVersion: state.graphVersion + 1 };
+    }),
 
   clearGraph: () =>
     set((state) => ({
