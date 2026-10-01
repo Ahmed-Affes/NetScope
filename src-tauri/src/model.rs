@@ -196,4 +196,3 @@ pub struct SocketInfo {
     pub exe_path: Option<String>,
     pub service: Option<String>,
 }
-

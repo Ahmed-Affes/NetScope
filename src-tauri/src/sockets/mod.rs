@@ -543,7 +543,12 @@ impl SocketPoller {
                 } else {
                     format!(":{}", entry.local_port)
                 };
-                let p_id = format!("port:{}:{}:{}", proc_label, entry.proto.to_lowercase(), entry.local_port);
+                let p_id = format!(
+                    "port:{}:{}:{}",
+                    proc_label,
+                    entry.proto.to_lowercase(),
+                    entry.local_port
+                );
 
                 current_nodes.entry(p_id.clone()).or_insert_with(|| GraphNode {
                     id: p_id.clone(),
@@ -732,8 +737,7 @@ impl SocketPoller {
         let mut sockets = Vec::with_capacity(entries.len());
 
         for entry in entries {
-            let service = classify_service(entry.local_port)
-                .or_else(|| classify_service(entry.remote_port));
+            let service = classify_service(entry.local_port).or_else(|| classify_service(entry.remote_port));
 
             sockets.push(SocketInfo {
                 proto: entry.proto,
@@ -799,7 +803,7 @@ pub fn classify_service(port: u16) -> Option<String> {
         80 => Some("http".into()),
         110 => Some("pop3".into()),
         123 => Some("ntp".into()),
-        137 | 138 | 139 => Some("netbios".into()),
+        137..=139 => Some("netbios".into()),
         143 => Some("imap".into()),
         161 | 162 => Some("snmp".into()),
         179 => Some("bgp".into()),

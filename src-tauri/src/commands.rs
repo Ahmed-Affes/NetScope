@@ -81,7 +81,7 @@ pub fn get_system_metrics() -> SystemMetrics {
         let mut tx = 0u64;
         let mut rx_rate = 0.0f64;
         let mut tx_rate = 0.0f64;
-        for (_name, net) in nets.iter() {
+        for net in nets.values() {
             rx += net.total_received();
             tx += net.total_transmitted();
             rx_rate += net.received() as f64;
@@ -140,7 +140,6 @@ pub fn get_active_sockets() -> Vec<crate::model::SocketInfo> {
     let poller = poller_guard.get_or_insert_with(crate::sockets::SocketPoller::new);
     poller.get_active_sockets()
 }
-
 
 #[tauri::command]
 #[specta::specta]
@@ -306,4 +305,3 @@ pub fn reveal_in_explorer(path: String) -> Result<String, String> {
         Ok(format!("Opened {}", path))
     }
 }
-
