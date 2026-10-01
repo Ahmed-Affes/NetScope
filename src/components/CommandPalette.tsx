@@ -154,16 +154,6 @@ export const CommandPalette: React.FC = () => {
             <Command.Group heading="Controls" className="text-[10px] text-slate-400 uppercase tracking-wider px-2 py-1 font-bold">
               <Command.Item
                 onSelect={() => {
-                  window.dispatchEvent(new CustomEvent("netscope:show-onboarding"));
-                  setOpen(false);
-                }}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
-              >
-                <Activity className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Show Onboarding Briefing</span>
-              </Command.Item>
-              <Command.Item
-                onSelect={() => {
                   window.dispatchEvent(new CustomEvent("netscope:check-update", { detail: { force: true } }));
                   setOpen(false);
                 }}

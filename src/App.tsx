@@ -8,7 +8,6 @@ import { FilterBar } from "./components/FilterBar";
 import { CommandPalette } from "./components/CommandPalette";
 import { NoPrivilegeBanner } from "./components/NoPrivilegeBanner";
 import { AlertFeed } from "./components/AlertFeed";
-import { OnboardingModal } from "./components/OnboardingModal";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { GraphCanvas } from "./components/GraphCanvas";
 
@@ -121,7 +120,6 @@ export const App: React.FC = () => {
         {/* Modals & Dialogs */}
         <UpdateNotification />
         <CommandPalette />
-        <OnboardingModal />
       </div>
     </div>
   );

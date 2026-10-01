@@ -40,15 +40,7 @@ export const UpdateNotification: React.FC = () => {
   };
 
   useEffect(() => {
-    let mounted = true;
-
-    // Check automatically on startup
-    check(false, false);
-
-    // Check every 10 minutes
-    const interval = setInterval(() => {
-      if (mounted) check(false, false);
-    }, 10 * 60 * 1000);
+    // Only open when explicitly triggered by the user (TitleBar version badge or CommandPalette)
 
     const handleTrigger = (e: Event) => {
       const customEvent = e as CustomEvent<{ force?: boolean; mock?: boolean }>;
@@ -64,8 +56,6 @@ export const UpdateNotification: React.FC = () => {
     window.addEventListener("netscope:check-update", handleTrigger);
 
     return () => {
-      mounted = false;
-      clearInterval(interval);
       window.removeEventListener("netscope:check-update", handleTrigger);
     };
   }, []);
