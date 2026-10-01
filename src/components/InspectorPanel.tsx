@@ -27,6 +27,7 @@ export const InspectorPanel: React.FC = () => {
     setActiveFilter,
     setSearchQuery,
     requestKillProcess,
+    isElevated,
   } = useNetScopeStore();
 
   const [blockedIps, setBlockedIps] = useState<Set<string>>(new Set());
@@ -34,6 +35,7 @@ export const InspectorPanel: React.FC = () => {
   const [feedbackType, setFeedbackType] = useState<"success" | "error">("success");
   const [copiedPath, setCopiedPath] = useState(false);
   const [procSockets, setProcSockets] = useState<SocketInfo[]>([]);
+  const [rateHistory, setRateHistory] = useState<number[]>([]);
 
   const selectedNode = selectedNodeId ? nodes[selectedNodeId] : null;
   const selectedLink = selectedLinkId ? links[selectedLinkId] : null;
@@ -87,12 +89,28 @@ export const InspectorPanel: React.FC = () => {
     setSearchQuery(`port:${port}`);
   };
 
+  // Track live rate history for selected node when elevated
+  useEffect(() => {
+    if (!isElevated || !selectedNode) {
+      setRateHistory([]);
+      return;
+    }
+    const currentRate = (selectedNode.rateIn || 0) + (selectedNode.rateOut || 0);
+    setRateHistory((prev) => [...prev.slice(-19), currentRate]);
+  }, [isElevated, selectedNode?.id, selectedNode?.rateIn, selectedNode?.rateOut]);
+
   const formatBytes = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     if (bytes < 1024 * 1024 * 1024)
       return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  };
+
+  const formatRate = (rate: number) => {
+    if (!isElevated) return "—";
+    if (rate <= 0) return "0 B/s";
+    return `${formatBytes(rate)}/s`;
   };
 
   return (
@@ -297,32 +315,58 @@ export const InspectorPanel: React.FC = () => {
             </div>
           )}
 
-          {/* Traffic stats with Sparkline */}
-          <div className="p-2 rounded bg-white/[0.02] border border-white/[0.04] space-y-1.5">
+          {/* Traffic stats with Sparkline or Elevation prompt */}
+          <div className="p-2.5 rounded bg-white/[0.02] border border-white/[0.04] space-y-2">
             <div className="flex justify-between items-center text-[11px]">
               <span className="text-slate-400">Total In / Out:</span>
               <span className="font-mono text-slate-200">
-                {formatBytes(selectedNode.bytesIn)} / {formatBytes(selectedNode.bytesOut)}
+                {isElevated
+                  ? `${formatBytes(selectedNode.bytesIn)} / ${formatBytes(selectedNode.bytesOut)}`
+                  : "—"}
               </span>
             </div>
             <div className="flex justify-between items-center text-[11px]">
               <span className="text-slate-400">Live Rate:</span>
               <span className="font-mono text-cyan-400 font-semibold">
-                {formatBytes(selectedNode.rateIn + selectedNode.rateOut)}/s
+                {formatRate(selectedNode.rateIn + selectedNode.rateOut)}
               </span>
             </div>
-            <div className="pt-1">
-              <span className="text-[9px] text-slate-400 uppercase tracking-wider block mb-1 font-medium">
-                Throughput Activity (Last 60s)
-              </span>
-              <Sparkline
-                data={[12, 18, 14, 25, 30, 48, 42, 60, 55, 75, 68, 92, selectedNode.rateIn + selectedNode.rateOut]}
-                width={320}
-                height={38}
-                color="#22d3ee"
-                fillColor="rgba(34, 211, 238, 0.12)"
-              />
-            </div>
+
+            {isElevated ? (
+              <div className="pt-1">
+                <span className="text-[9px] text-slate-400 uppercase tracking-wider block mb-1 font-medium">
+                  Throughput Activity (Live ETW)
+                </span>
+                <Sparkline
+                  data={rateHistory.length > 1 ? rateHistory : [0, selectedNode.rateIn + selectedNode.rateOut]}
+                  width={320}
+                  height={38}
+                  color="#22d3ee"
+                  fillColor="rgba(34, 211, 238, 0.12)"
+                />
+              </div>
+            ) : (
+              <div className="pt-1 border-t border-white/[0.04] flex items-center justify-between gap-2">
+                <span className="text-[10px] text-slate-400 font-mono">
+                  Throughput: Tier A (Basic)
+                </span>
+                <button
+                  onClick={async () => {
+                    try {
+                      await commands.relaunchElevated();
+                    } catch (e) {
+                      setFeedback(`Elevation request failed: ${e}`);
+                      setFeedbackType("error");
+                    }
+                  }}
+                  className="px-2 py-1 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 hover:text-amber-200 text-[10px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                  title="Relaunch NetScope with Administrator privileges to enable kernel ETW per-connection bandwidth metering"
+                >
+                  <Shield className="w-3 h-3 text-amber-400" />
+                  <span>Enable full visibility</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Threat info */}
@@ -425,13 +469,13 @@ export const InspectorPanel: React.FC = () => {
             <div className="flex justify-between items-center text-[11px]">
               <span className="text-slate-400">Total Volume:</span>
               <span className="font-mono text-slate-200">
-                {formatBytes(selectedLink.bytesIn + selectedLink.bytesOut)}
+                {isElevated ? formatBytes(selectedLink.bytesIn + selectedLink.bytesOut) : "—"}
               </span>
             </div>
             <div className="flex justify-between items-center text-[11px]">
               <span className="text-slate-400">Throughput Rate:</span>
               <span className="font-mono text-cyan-400 font-semibold">
-                {formatBytes(selectedLink.rate)}/s
+                {formatRate(selectedLink.rate)}
               </span>
             </div>
           </div>

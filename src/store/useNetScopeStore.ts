@@ -26,10 +26,12 @@ interface NetScopeState {
   activeFilter: string | null;
   layoutMode: "force" | "radial" | "geo" | "3d";
   graphVersion: number;
+  isElevated: boolean;
 
   // Actions
   applyDelta: (delta: GraphDelta) => void;
   setMetrics: (metrics: SystemMetrics) => void;
+  setIsElevated: (elevated: boolean) => void;
   selectNode: (id: string | null) => void;
   selectLink: (id: string | null) => void;
   toggleMetrics: () => void;
@@ -83,6 +85,7 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
   activeFilter: null,
   layoutMode: "force",
   graphVersion: 0,
+  isElevated: false,
 
   applyDelta: (delta) =>
     set((state) => {
@@ -149,6 +152,7 @@ export const useNetScopeStore = create<NetScopeState>((set) => ({
     }),
 
   setMetrics: (metrics) => set({ metrics }),
+  setIsElevated: (isElevated) => set({ isElevated }),
 
   selectNode: (id) =>
     set({

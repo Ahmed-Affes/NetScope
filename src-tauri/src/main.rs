@@ -50,4 +50,74 @@ mod tests {
         assert!(block_remote_ip("0.0.0.0".into()).is_err()); // unspecified
         assert!(block_remote_ip("224.0.0.1".into()).is_err()); // multicast
     }
+
+    #[test]
+    fn test_ip_classification_gateways_and_public() {
+        use netscope_lib::model::NodeKind;
+        use netscope_lib::sockets::classification::classify_ip_with_gateways;
+        use std::collections::HashSet;
+        use std::net::IpAddr;
+
+        let mut gateways = HashSet::new();
+        gateways.insert("192.168.1.1".parse::<IpAddr>().unwrap());
+
+        // 1. Loopback / 0.0.0.0 are Host, never Gateway!
+        assert_eq!(classify_ip_with_gateways("127.0.0.1", &gateways), NodeKind::Host);
+        assert_eq!(classify_ip_with_gateways("::1", &gateways), NodeKind::Host);
+        assert_eq!(classify_ip_with_gateways("0.0.0.0", &gateways), NodeKind::Host);
+
+        // 2. Real gateway matches Gateway
+        assert_eq!(classify_ip_with_gateways("192.168.1.1", &gateways), NodeKind::Gateway);
+
+        // 3. Public IPs ending in .1 are NEVER Gateway (Acceptance Criteria 2)
+        assert_eq!(classify_ip_with_gateways("1.1.1.1", &gateways), NodeKind::Internet);
+        assert_eq!(classify_ip_with_gateways("8.8.8.1", &gateways), NodeKind::Internet);
+        assert_eq!(classify_ip_with_gateways("142.250.190.1", &gateways), NodeKind::Internet);
+
+        // 4. Tailscale (100.64.0.0/10 and fd7a:115c:a1e0::/48)
+        assert_eq!(classify_ip_with_gateways("100.64.0.1", &gateways), NodeKind::Tailscale);
+        assert_eq!(classify_ip_with_gateways("100.100.100.100", &gateways), NodeKind::Tailscale);
+        assert_eq!(classify_ip_with_gateways("100.127.255.254", &gateways), NodeKind::Tailscale);
+        assert_eq!(classify_ip_with_gateways("fd7a:115c:a1e0::1", &gateways), NodeKind::Tailscale);
+
+        // 5. Private LAN (RFC1918)
+        assert_eq!(classify_ip_with_gateways("192.168.1.50", &gateways), NodeKind::Lan);
+        assert_eq!(classify_ip_with_gateways("10.0.5.20", &gateways), NodeKind::Lan);
+        assert_eq!(classify_ip_with_gateways("172.16.1.1", &gateways), NodeKind::Lan);
+
+        // 6. Docker default bridge (172.17.0.0/16)
+        assert_eq!(classify_ip_with_gateways("172.17.0.2", &gateways), NodeKind::Docker);
+    }
+
+    #[test]
+    fn test_service_classification_and_monitor() {
+        use netscope_lib::sockets::classification::{classify_service, is_monitor_service};
+
+        // Friendly service names
+        assert_eq!(classify_service(11434), Some("Ollama LLM API".into()));
+        assert_eq!(classify_service(7474), Some("Neo4j Browser HTTP".into()));
+        assert_eq!(classify_service(7687), Some("Neo4j Bolt".into()));
+        assert_eq!(classify_service(5173), Some("Vite Dev Server".into()));
+        assert_eq!(classify_service(9090), Some("Prometheus".into()));
+
+        // Monitor category
+        assert!(is_monitor_service(9090)); // Prometheus
+        assert!(is_monitor_service(3000)); // Grafana
+        assert!(is_monitor_service(9100)); // Node Exporter
+        assert!(is_monitor_service(19999)); // Netdata
+        assert!(!is_monitor_service(80));
+        assert!(!is_monitor_service(443));
+        assert!(!is_monitor_service(22));
+    }
+
+    #[test]
+    fn test_mac_oui_vendor_lookup() {
+        use netscope_lib::sockets::discovery::lookup_mac_vendor;
+
+        assert_eq!(lookup_mac_vendor("F4:D4:88:11:22:33"), Some("Apple".into()));
+        assert_eq!(lookup_mac_vendor("B8-27-EB-AA-BB-CC"), Some("Raspberry Pi".into()));
+        assert_eq!(lookup_mac_vendor("24:0A:C4:00:11:22"), Some("Espressif IoT".into()));
+        assert_eq!(lookup_mac_vendor("00:15:5D:12:34:56"), Some("Microsoft Hyper-V".into()));
+        assert_eq!(lookup_mac_vendor("FF:FF:FF:FF:FF:FF"), None);
+    }
 }

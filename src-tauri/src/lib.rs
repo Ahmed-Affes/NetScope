@@ -5,6 +5,7 @@ pub mod model;
 pub mod sockets;
 pub mod threats;
 
+#[cfg(not(test))]
 use tauri_specta::{collect_commands, Builder};
 
 #[cfg(test)]
@@ -28,6 +29,7 @@ pub fn run() {
         commands::open_external_url,
         commands::kill_process,
         commands::reveal_in_explorer,
+        commands::relaunch_elevated,
     ]);
 
     // bindings.ts is maintained manually in src/bindings.ts
@@ -40,6 +42,9 @@ pub fn run() {
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
             builder.mount_events(app);
+            let app_handle = app.handle().clone();
+            let poller = commands::get_shared_poller();
+            sockets::start_poller_thread(app_handle, poller);
             Ok(())
         })
         .run(tauri::generate_context!())

@@ -141,5 +141,10 @@ export const commands = {
     if (isTauri()) return inv<string>("reveal_in_explorer", { path });
     return `Revealed ${path}`;
   },
+
+  async relaunchElevated(): Promise<string> {
+    if (isTauri()) return inv<string>("relaunch_elevated");
+    return "Relaunch elevated is only supported in desktop mode";
+  },
 };
 

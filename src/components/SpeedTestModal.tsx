@@ -71,9 +71,9 @@ export const SpeedTestModal: React.FC = () => {
         })
         .catch(() => {
           setServerMeta({
-            ip: "Detected via Gateway",
-            loc: "Local Gateway Edge",
-            isp: "Direct PC Interface",
+            ip: "Unknown",
+            loc: "Unknown",
+            isp: "Unknown",
           });
         });
     }

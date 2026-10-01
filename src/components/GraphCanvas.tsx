@@ -3,7 +3,6 @@ import { GraphEngine } from "../graph/GraphEngine";
 import { LiveSource } from "../sources/live";
 import { TrafficSource, GraphNode, GraphLink } from "../types/graph";
 import { useNetScopeStore } from "../store/useNetScopeStore";
-import { threatEngine } from "../services/threatEngine";
 import { Activity, Wifi, WifiOff } from "lucide-react";
 
 type LoadState = "loading" | "ok" | "empty";
@@ -265,13 +264,6 @@ export const GraphCanvas: React.FC = () => {
           storeNow.layoutMode,
           delta.nodePositions
         );
-
-        // Run threat engine once per 2 seconds to avoid UI alert flooding
-        const now = Date.now();
-        if (now - lastThreatAnalysis > 2000) {
-          lastThreatAnalysis = now;
-          threatEngine.analyzeTopology(nodesList, linksList);
-        }
       });
 
       source.start();

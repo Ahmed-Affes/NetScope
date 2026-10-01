@@ -293,16 +293,6 @@ export const CommandPalette: React.FC = () => {
               </Command.Item>
               <Command.Item
                 onSelect={() => {
-                  setLayoutMode("geo");
-                  setOpen(false);
-                }}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded cursor-pointer hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300"
-              >
-                <Activity className="w-3.5 h-3.5 text-blue-400" />
-                <span>Geographic Regional Layout</span>
-              </Command.Item>
-              <Command.Item
-                onSelect={() => {
                   setLayoutMode("3d");
                   setOpen(false);
                 }}

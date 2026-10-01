@@ -17,7 +17,16 @@ import { useNetScopeStore } from "./store/useNetScopeStore";
 import { commands } from "./bindings";
 
 export const App: React.FC = () => {
-  const { setMetrics, openCommandPalette, killTarget, closeKillProcess } = useNetScopeStore();
+  const { setMetrics, setIsElevated, openCommandPalette, killTarget, closeKillProcess } = useNetScopeStore();
+
+  // Load app info (elevation status) on startup
+  useEffect(() => {
+    commands.getAppInfo().then((info) => {
+      setIsElevated(info.isElevated);
+    }).catch((err) => {
+      console.warn("Failed to get app info:", err);
+    });
+  }, [setIsElevated]);
 
   // Load system metrics periodically
   useEffect(() => {
@@ -41,7 +50,7 @@ export const App: React.FC = () => {
     };
   }, [setMetrics]);
 
-  // Global keyboard shortcuts: F, Space, /, Esc, 1, 2, 3, 4
+  // Global keyboard shortcuts: F, Space, /, Esc, 1, 2, 3
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -63,8 +72,6 @@ export const App: React.FC = () => {
       } else if (e.key === "2") {
         useNetScopeStore.getState().setLayoutMode("radial");
       } else if (e.key === "3") {
-        useNetScopeStore.getState().setLayoutMode("geo");
-      } else if (e.key === "4") {
         useNetScopeStore.getState().setLayoutMode("3d");
       }
     };

@@ -6,6 +6,57 @@ use sysinfo::{Disks, Networks, System};
 static SYSTEM_STATE: Mutex<Option<System>> = Mutex::new(None);
 static NETWORKS_STATE: Mutex<Option<Networks>> = Mutex::new(None);
 
+#[cfg(target_os = "windows")]
+pub fn check_is_elevated() -> bool {
+    use std::mem;
+    #[link(name = "advapi32")]
+    extern "system" {
+        fn OpenProcessToken(
+            ProcessHandle: *mut std::ffi::c_void,
+            DesiredAccess: u32,
+            TokenHandle: *mut *mut std::ffi::c_void,
+        ) -> i32;
+        fn GetTokenInformation(
+            TokenHandle: *mut std::ffi::c_void,
+            TokenInformationClass: u32,
+            TokenInformation: *mut std::ffi::c_void,
+            TokenInformationLength: u32,
+            ReturnLength: *mut u32,
+        ) -> i32;
+    }
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetCurrentProcess() -> *mut std::ffi::c_void;
+        fn CloseHandle(hObject: *mut std::ffi::c_void) -> i32;
+    }
+
+    unsafe {
+        let mut token: *mut std::ffi::c_void = std::ptr::null_mut();
+        const TOKEN_QUERY: u32 = 0x0008;
+        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) != 0 {
+            let mut elevation: u32 = 0;
+            let mut ret_len: u32 = 0;
+            // TokenElevation = 20
+            let res = GetTokenInformation(
+                token,
+                20,
+                &mut elevation as *mut _ as *mut std::ffi::c_void,
+                mem::size_of::<u32>() as u32,
+                &mut ret_len,
+            );
+            CloseHandle(token);
+            res != 0 && elevation != 0
+        } else {
+            false
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn check_is_elevated() -> bool {
+    false
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn get_app_info() -> AppInfo {
@@ -13,7 +64,64 @@ pub fn get_app_info() -> AppInfo {
         name: "NetScope".into(),
         version: env!("CARGO_PKG_VERSION").into(),
         mode: "live".into(),
-        is_elevated: false,
+        is_elevated: check_is_elevated(),
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn relaunch_elevated() -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        #[link(name = "shell32")]
+        extern "system" {
+            fn ShellExecuteW(
+                hwnd: *mut std::ffi::c_void,
+                lpOperation: *const u16,
+                lpFile: *const u16,
+                lpParameters: *const u16,
+                lpDirectory: *const u16,
+                nShowCmd: i32,
+            ) -> isize;
+        }
+
+        let exe = std::env::current_exe()
+            .map_err(|e| format!("Failed to find current executable: {}", e))?;
+        let exe_w: Vec<u16> = exe
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let op_w: Vec<u16> = std::ffi::OsStr::new("runas")
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+
+        let res = unsafe {
+            ShellExecuteW(
+                std::ptr::null_mut(),
+                op_w.as_ptr(),
+                exe_w.as_ptr(),
+                std::ptr::null(),
+                std::ptr::null(),
+                1, // SW_SHOWNORMAL
+            )
+        };
+
+        if res > 32 {
+            std::process::exit(0);
+        } else {
+            Err(format!(
+                "UAC elevation was cancelled or failed with code {}",
+                res
+            ))
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Err("Elevation relaunch is only supported on Windows".into())
     }
 }
 
@@ -114,21 +222,32 @@ pub fn set_traffic_mode(mode: String) -> Result<String, String> {
     Ok(format!("Switched mode to {}", mode))
 }
 
-static SOCKET_POLLER: Mutex<Option<crate::sockets::SocketPoller>> = Mutex::new(None);
+static SHARED_POLLER: std::sync::OnceLock<std::sync::Arc<Mutex<crate::sockets::SocketPoller>>> =
+    std::sync::OnceLock::new();
+
+pub fn get_shared_poller() -> std::sync::Arc<Mutex<crate::sockets::SocketPoller>> {
+    SHARED_POLLER
+        .get_or_init(|| {
+            std::sync::Arc::new(Mutex::new(crate::sockets::SocketPoller::new(
+                check_is_elevated(),
+            )))
+        })
+        .clone()
+}
 
 #[tauri::command]
 #[specta::specta]
 pub fn get_socket_delta() -> crate::model::GraphDelta {
-    let mut poller_guard = SOCKET_POLLER.lock().unwrap_or_else(|e| e.into_inner());
-    let poller = poller_guard.get_or_insert_with(crate::sockets::SocketPoller::new);
+    let poller_arc = get_shared_poller();
+    let mut poller = poller_arc.lock().unwrap_or_else(|e| e.into_inner());
     poller.poll_and_compute_delta()
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn get_socket_snapshot() -> crate::model::GraphSnapshot {
-    let mut poller_guard = SOCKET_POLLER.lock().unwrap_or_else(|e| e.into_inner());
-    let poller = poller_guard.get_or_insert_with(crate::sockets::SocketPoller::new);
+    let poller_arc = get_shared_poller();
+    let poller = poller_arc.lock().unwrap_or_else(|e| e.into_inner());
     let (nodes, links) = poller.get_snapshot();
     crate::model::GraphSnapshot { nodes, links }
 }
@@ -136,8 +255,8 @@ pub fn get_socket_snapshot() -> crate::model::GraphSnapshot {
 #[tauri::command]
 #[specta::specta]
 pub fn get_active_sockets() -> Vec<crate::model::SocketInfo> {
-    let mut poller_guard = SOCKET_POLLER.lock().unwrap_or_else(|e| e.into_inner());
-    let poller = poller_guard.get_or_insert_with(crate::sockets::SocketPoller::new);
+    let poller_arc = get_shared_poller();
+    let mut poller = poller_arc.lock().unwrap_or_else(|e| e.into_inner());
     poller.get_active_sockets()
 }
 

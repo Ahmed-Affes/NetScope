@@ -147,7 +147,7 @@ export const TitleBar: React.FC = () => {
 
         {/* Layout Modes */}
         <div className="flex items-center bg-[#0e121a] rounded p-0.5 border border-white/[0.06] text-[10px]">
-          {(["force", "radial", "geo", "3d"] as const).map((mode) => (
+          {(["force", "radial", "3d"] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => setLayoutMode(mode)}
