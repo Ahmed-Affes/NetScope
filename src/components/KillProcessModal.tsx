@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { AlertTriangle, ShieldAlert, Trash2, X } from "lucide-react";
 import { commands } from "../bindings";
+import { isCriticalProcess, getCriticalProcessReason } from "../utils/processSafety";
 
 interface KillProcessModalProps {
   isOpen: boolean;
@@ -14,54 +15,29 @@ interface KillProcessModalProps {
   onSuccess?: (msg: string) => void;
 }
 
-const CRITICAL_PROCESS_NAMES = new Set([
-  "system",
-  "svchost.exe",
-  "csrss.exe",
-  "smss.exe",
-  "wininit.exe",
-  "winlogon.exe",
-  "lsass.exe",
-  "services.exe",
-  "spoolsv.exe",
-  "explorer.exe",
-  "dwm.exe",
-  "fontdrvhost.exe",
-  "sihost.exe",
-  "taskhostw.exe",
-]);
-
-const CRITICAL_PORTS = new Set([135, 137, 138, 139, 445, 53, 67, 68, 88, 389]);
-
 export const KillProcessModal: React.FC<KillProcessModalProps> = ({
   isOpen,
   target,
   onClose,
   onSuccess,
 }) => {
-  const [confirmInput, setConfirmInput] = useState("");
   const [isKilling, setIsKilling] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    setConfirmInput("");
     setIsKilling(false);
     setErrorMsg(null);
   }, [isOpen, target]);
 
   if (!isOpen || !target) return null;
 
-  const isCritical =
-    target.pid <= 4 ||
-    CRITICAL_PROCESS_NAMES.has(target.name.toLowerCase()) ||
-    (target.ports && target.ports.some((p) => CRITICAL_PORTS.has(p)));
-
-  const isConfirmed = isCritical
-    ? confirmInput.trim().toLowerCase() === "i am sure"
-    : true;
+  const isCritical = isCriticalProcess(target.pid, target.name);
 
   const handleTerminate = async () => {
-    if (!isConfirmed) return;
+    if (isCritical) {
+      setErrorMsg(getCriticalProcessReason(target.pid, target.name));
+      return;
+    }
     setIsKilling(true);
     setErrorMsg(null);
 
@@ -143,25 +119,12 @@ export const KillProcessModal: React.FC<KillProcessModalProps> = ({
             <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 space-y-2 text-rose-200">
               <div className="flex items-center gap-2 font-bold text-[11px] text-rose-400 uppercase tracking-wide">
                 <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-                <span>POTENTIALLY DANGEROUS TERMINATION</span>
+                <span>CRITICAL SYSTEM PROCESS (PROTECTED)</span>
               </div>
               <p className="text-[11px] leading-relaxed text-rose-200/90 font-sans">
-                <strong>{target.name}</strong> is an essential Windows component or core system service.
-                Killing it may crash Windows, cause a Blue Screen (BSOD), or disconnect network adapters.
+                <strong>{target.name}</strong> (PID {target.pid}) is a core Windows system process.
+                Terminating it is strictly prohibited to prevent system instability, memory corruption, or operating system crashes (BSOD).
               </p>
-              <div className="pt-2 border-t border-rose-500/20 space-y-1.5">
-                <label className="block text-[10px] uppercase font-bold text-rose-300 tracking-wider">
-                  Type <span className="text-white underline font-mono">I am sure</span> to confirm:
-                </label>
-                <input
-                  type="text"
-                  value={confirmInput}
-                  onChange={(e) => setConfirmInput(e.target.value)}
-                  placeholder="Type 'I am sure' to unlock..."
-                  className="w-full px-3 py-1.5 rounded bg-black/60 border border-rose-500/40 text-rose-100 placeholder-rose-400/40 font-mono text-xs focus:outline-none focus:border-rose-400 transition-colors"
-                  autoFocus
-                />
-              </div>
             </div>
           ) : (
             <div className="text-slate-300 text-xs leading-relaxed font-sans">
@@ -184,23 +147,19 @@ export const KillProcessModal: React.FC<KillProcessModalProps> = ({
             disabled={isKilling}
             className="px-4 py-1.5 rounded bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 text-xs font-medium transition-colors"
           >
-            Cancel
+            {isCritical ? "Close" : "Cancel"}
           </button>
 
-          <button
-            onClick={handleTerminate}
-            disabled={isKilling || (isCritical && !isConfirmed)}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-all ${
-              isCritical
-                ? isConfirmed
-                  ? "bg-rose-600 hover:bg-rose-500 text-white cursor-pointer shadow-lg shadow-rose-950/50"
-                  : "bg-rose-950/40 text-rose-400/40 border border-rose-500/20 cursor-not-allowed"
-                : "bg-rose-600 hover:bg-rose-500 text-white cursor-pointer"
-            }`}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>{isKilling ? "Terminating..." : isCritical ? "Force Kill Task" : "End Process"}</span>
-          </button>
+          {!isCritical && (
+            <button
+              onClick={handleTerminate}
+              disabled={isKilling}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-all bg-rose-600 hover:bg-rose-500 text-white cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{isKilling ? "Terminating..." : "End Process"}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

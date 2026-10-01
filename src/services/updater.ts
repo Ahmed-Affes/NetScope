@@ -113,19 +113,6 @@ class UpdateService {
     }
   }
 
-  public getMockUpdate(): UpdateInfo {
-    return {
-      version: "0.2.7",
-      tagName: "v0.2.7",
-      name: "NetScope v0.2.7",
-      notes:
-        "• Real-time socket polling performance improvements\n• Windows ARP network discovery stability\n• UI polish and dark mode refinements",
-      publishedAt: new Date().toISOString(),
-      downloadUrl: `https://github.com/${REPO}/releases`,
-      hasUpdate: true,
-    };
-  }
-
   public isDismissed(version: string): boolean {
     try {
       return localStorage.getItem(`netscope_dismissed_update_${version}`) === "true";

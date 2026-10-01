@@ -43,14 +43,8 @@ export const UpdateNotification: React.FC = () => {
     // Only open when explicitly triggered by the user (TitleBar version badge or CommandPalette)
 
     const handleTrigger = (e: Event) => {
-      const customEvent = e as CustomEvent<{ force?: boolean; mock?: boolean }>;
-      if (customEvent.detail?.mock) {
-        const mock = updateService.getMockUpdate();
-        setUpdateInfo(mock);
-        setIsOpen(true);
-      } else {
-        check(true, true);
-      }
+      const _customEvent = e as CustomEvent<{ force?: boolean }>;
+      check(true, true);
     };
 
     window.addEventListener("netscope:check-update", handleTrigger);

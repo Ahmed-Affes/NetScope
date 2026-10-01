@@ -7,6 +7,10 @@ pub mod threats;
 
 use tauri_specta::{collect_commands, Builder};
 
+#[cfg(test)]
+pub fn run() {}
+
+#[cfg(not(test))]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = Builder::<tauri::Wry>::new().commands(collect_commands![

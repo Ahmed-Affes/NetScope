@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNetScopeStore } from "../store/useNetScopeStore";
 import { commands, SocketInfo } from "../bindings";
+import { isCriticalProcess, getCriticalProcessReason } from "../utils/processSafety";
 import {
   Check,
   ChevronDown,
@@ -744,11 +745,20 @@ export const PortInspectorModal: React.FC = () => {
                                     exePath: s.exePath ?? undefined,
                                   })
                                 }
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/10 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 hover:text-rose-200 text-[10px] font-sans transition-colors cursor-pointer"
-                                title={`Terminate process ${s.processName ?? ""} (PID ${s.pid}) directly from app`}
+                                disabled={isCriticalProcess(s.pid, s.processName)}
+                                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-sans transition-colors ${
+                                  isCriticalProcess(s.pid, s.processName)
+                                    ? "bg-slate-800/40 border border-slate-700/40 text-slate-500 cursor-not-allowed opacity-50"
+                                    : "bg-rose-500/10 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 hover:text-rose-200 cursor-pointer"
+                                }`}
+                                title={
+                                  isCriticalProcess(s.pid, s.processName)
+                                    ? getCriticalProcessReason(s.pid, s.processName)
+                                    : `Terminate process ${s.processName ?? ""} (PID ${s.pid}) directly from app`
+                                }
                               >
                                 <Trash2 className="w-2.5 h-2.5 text-rose-400" />
-                                <span>Kill</span>
+                                <span>{isCriticalProcess(s.pid, s.processName) ? "Protected" : "Kill"}</span>
                               </button>
                             )}
                           </div>
@@ -856,11 +866,20 @@ export const PortInspectorModal: React.FC = () => {
                                   exePath: proc.exePath ?? undefined,
                                 })
                               }
-                              className="flex items-center gap-1 px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/30 border border-rose-500/35 text-rose-300 text-[10px] font-sans font-semibold transition-colors cursor-pointer"
-                              title={`Terminate ${proc.processName} (PID ${proc.pid})`}
+                              disabled={isCriticalProcess(proc.pid, proc.processName)}
+                              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-sans font-semibold transition-colors ${
+                                isCriticalProcess(proc.pid, proc.processName)
+                                  ? "bg-slate-800/40 border border-slate-700/40 text-slate-500 cursor-not-allowed opacity-50"
+                                  : "bg-rose-500/15 hover:bg-rose-500/30 border border-rose-500/35 text-rose-300 cursor-pointer"
+                              }`}
+                              title={
+                                isCriticalProcess(proc.pid, proc.processName)
+                                  ? getCriticalProcessReason(proc.pid, proc.processName)
+                                  : `Terminate ${proc.processName} (PID ${proc.pid})`
+                              }
                             >
                               <Trash2 className="w-2.5 h-2.5" />
-                              <span>End Task</span>
+                              <span>{isCriticalProcess(proc.pid, proc.processName) ? "Protected" : "End Task"}</span>
                             </button>
                           )}
                         </div>

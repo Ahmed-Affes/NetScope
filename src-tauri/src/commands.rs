@@ -20,7 +20,7 @@ pub fn get_app_info() -> AppInfo {
 #[tauri::command]
 #[specta::specta]
 pub fn get_system_metrics() -> SystemMetrics {
-    let mut state_guard = SYSTEM_STATE.lock().unwrap();
+    let mut state_guard = SYSTEM_STATE.lock().unwrap_or_else(|e| e.into_inner());
     let sys = state_guard.get_or_insert_with(|| {
         let mut s = System::new_all();
         s.refresh_all();
@@ -42,7 +42,7 @@ pub fn get_system_metrics() -> SystemMetrics {
     static LAST_DISK_CHECK: Mutex<(u64, u64, u64)> = Mutex::new((0, 0, 0));
     let now = crate::sockets::now_ms();
     let (disk_free, disk_total) = {
-        let mut disk_guard = LAST_DISK_CHECK.lock().unwrap();
+        let mut disk_guard = LAST_DISK_CHECK.lock().unwrap_or_else(|e| e.into_inner());
         if now.saturating_sub(disk_guard.2) > 30_000 || disk_guard.1 == 0 {
             let disks = Disks::new_with_refreshed_list();
             let mut free = 0u64;
@@ -74,7 +74,7 @@ pub fn get_system_metrics() -> SystemMetrics {
         .count() as u32;
 
     let (net_rx, net_tx, net_rx_rate, net_tx_rate) = {
-        let mut net_guard = NETWORKS_STATE.lock().unwrap();
+        let mut net_guard = NETWORKS_STATE.lock().unwrap_or_else(|e| e.into_inner());
         let nets = net_guard.get_or_insert_with(Networks::new_with_refreshed_list);
         nets.refresh(true);
         let mut rx = 0u64;
@@ -119,7 +119,7 @@ static SOCKET_POLLER: Mutex<Option<crate::sockets::SocketPoller>> = Mutex::new(N
 #[tauri::command]
 #[specta::specta]
 pub fn get_socket_delta() -> crate::model::GraphDelta {
-    let mut poller_guard = SOCKET_POLLER.lock().unwrap();
+    let mut poller_guard = SOCKET_POLLER.lock().unwrap_or_else(|e| e.into_inner());
     let poller = poller_guard.get_or_insert_with(crate::sockets::SocketPoller::new);
     poller.poll_and_compute_delta()
 }
@@ -127,7 +127,7 @@ pub fn get_socket_delta() -> crate::model::GraphDelta {
 #[tauri::command]
 #[specta::specta]
 pub fn get_socket_snapshot() -> crate::model::GraphSnapshot {
-    let mut poller_guard = SOCKET_POLLER.lock().unwrap();
+    let mut poller_guard = SOCKET_POLLER.lock().unwrap_or_else(|e| e.into_inner());
     let poller = poller_guard.get_or_insert_with(crate::sockets::SocketPoller::new);
     let (nodes, links) = poller.get_snapshot();
     crate::model::GraphSnapshot { nodes, links }
@@ -136,7 +136,7 @@ pub fn get_socket_snapshot() -> crate::model::GraphSnapshot {
 #[tauri::command]
 #[specta::specta]
 pub fn get_active_sockets() -> Vec<crate::model::SocketInfo> {
-    let mut poller_guard = SOCKET_POLLER.lock().unwrap();
+    let mut poller_guard = SOCKET_POLLER.lock().unwrap_or_else(|e| e.into_inner());
     let poller = poller_guard.get_or_insert_with(crate::sockets::SocketPoller::new);
     poller.get_active_sockets()
 }
@@ -167,9 +167,21 @@ pub fn stop_capture() -> Result<String, String> {
 #[tauri::command]
 #[specta::specta]
 pub fn block_remote_ip(ip: String) -> Result<String, String> {
+    let ip_addr = ip.trim().parse::<std::net::IpAddr>().map_err(|_| {
+        format!(
+            "Invalid IP address '{}'. Must be a single IPv4 or IPv6 address (ranges, CIDR, and keywords are rejected).",
+            ip
+        )
+    })?;
+
+    if ip_addr.is_loopback() || ip_addr.is_unspecified() || ip_addr.is_multicast() {
+        return Err(format!("Cannot block special address: {}", ip_addr));
+    }
+
     #[cfg(target_os = "windows")]
     {
-        let rule_name = format!("NetScope_Block_{}", ip);
+        let ip_clean = ip_addr.to_string();
+        let rule_name = format!("NetScope_Block_{}", ip_clean);
         let status = std::process::Command::new("netsh")
             .args([
                 "advfirewall",
@@ -179,7 +191,7 @@ pub fn block_remote_ip(ip: String) -> Result<String, String> {
                 &format!("name={}", rule_name),
                 "dir=out",
                 "action=block",
-                &format!("remoteip={}", ip),
+                &format!("remoteip={}", ip_clean),
             ])
             .status();
 
@@ -194,17 +206,22 @@ pub fn block_remote_ip(ip: String) -> Result<String, String> {
 
     #[cfg(not(target_os = "windows"))]
     {
-        Ok(format!("Firewall drop rule for {} staged", ip))
+        Ok(format!("Firewall drop rule for {} staged", ip_addr))
     }
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn unblock_remote_ip(ip: String) -> Result<String, String> {
+    let ip_addr = ip.trim().parse::<std::net::IpAddr>().map_err(|_| {
+        format!("Invalid IP address '{}'. Must be a single IPv4 or IPv6 address.", ip)
+    })?;
+
     #[cfg(target_os = "windows")]
     {
-        let rule_name = format!("NetScope_Block_{}", ip);
-        let _ = std::process::Command::new("netsh")
+        let ip_clean = ip_addr.to_string();
+        let rule_name = format!("NetScope_Block_{}", ip_clean);
+        let status = std::process::Command::new("netsh")
             .args([
                 "advfirewall",
                 "firewall",
@@ -213,38 +230,107 @@ pub fn unblock_remote_ip(ip: String) -> Result<String, String> {
                 &format!("name={}", rule_name),
             ])
             .status();
-        Ok(format!("Firewall rule '{}' removed", rule_name))
+
+        match status {
+            Ok(s) if s.success() => Ok(format!("Firewall rule '{}' removed", rule_name)),
+            Ok(_) => Err(
+                "Failed to remove firewall rule. Administrator elevation may be required or rule does not exist.".into(),
+            ),
+            Err(e) => Err(format!("Failed to execute netsh: {}", e)),
+        }
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        Ok(format!("Firewall drop rule for {} removed", ip))
+        Ok(format!("Firewall drop rule for {} removed", ip_addr))
     }
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn open_external_url(url: String) -> Result<String, String> {
+    let parsed = url::Url::parse(&url).map_err(|e| format!("Invalid URL: {}", e))?;
+    if parsed.scheme() != "http" && parsed.scheme() != "https" {
+        return Err(format!(
+            "Disallowed URL scheme '{}'. Only http and https URLs are allowed.",
+            parsed.scheme()
+        ));
+    }
+
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
-        let mut cmd = std::process::Command::new("cmd");
-        cmd.args(["/c", "start", "", &url]);
+        let mut cmd = std::process::Command::new("rundll32");
+        cmd.args(["url.dll,FileProtocolHandler", parsed.as_str()]);
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
         cmd.spawn().map_err(|e| format!("Failed to open URL: {}", e))?;
-        Ok(format!("Opened {}", url))
+        Ok(format!("Opened {}", parsed))
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
-        Ok(format!("Opened {}", url))
+        let mut cmd = std::process::Command::new("xdg-open");
+        cmd.arg(parsed.as_str());
+        cmd.spawn().map_err(|e| format!("Failed to open URL: {}", e))?;
+        Ok(format!("Opened {}", parsed))
     }
+}
+
+const CRITICAL_PROCESSES: &[&str] = &[
+    "system",
+    "system idle process",
+    "registry",
+    "smss.exe",
+    "csrss.exe",
+    "wininit.exe",
+    "winlogon.exe",
+    "services.exe",
+    "lsass.exe",
+    "svchost.exe",
+    "explorer.exe",
+    "fontdrvhost.exe",
+    "dwm.exe",
+];
+
+pub fn is_critical_process(pid: u32, name: &str) -> bool {
+    if pid <= 4 {
+        return true;
+    }
+    let lower = name.trim().to_lowercase();
+    CRITICAL_PROCESSES.iter().any(|&crit| {
+        lower == crit || lower == crit.trim_end_matches(".exe")
+    })
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn kill_process(pid: u32) -> Result<String, String> {
+    if pid <= 4 {
+        return Err(format!("Cannot terminate critical system process (PID {})", pid));
+    }
+
+    let mut state_guard = SYSTEM_STATE.lock().unwrap_or_else(|e| e.into_inner());
+    let sys = state_guard.get_or_insert_with(|| {
+        let mut s = System::new_all();
+        s.refresh_all();
+        s
+    });
+
+    let sys_pid = sysinfo::Pid::from(pid as usize);
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[sys_pid]), true);
+
+    let proc_name = match sys.process(sys_pid) {
+        Some(p) => p.name().to_string_lossy().to_string(),
+        None => return Err(format!("Process PID {} does not exist or has already exited", pid)),
+    };
+
+    if is_critical_process(pid, &proc_name) {
+        return Err(format!(
+            "Refusing to terminate critical system process '{}' (PID {}). Protected for system stability.",
+            proc_name, pid
+        ));
+    }
+
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
@@ -253,12 +339,8 @@ pub fn kill_process(pid: u32) -> Result<String, String> {
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
         let output = cmd.output().map_err(|e| format!("Failed to invoke taskkill: {}", e))?;
         if output.status.success() {
-            if let Ok(mut guard) = SYSTEM_STATE.lock() {
-                if let Some(ref mut sys) = *guard {
-                    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-                }
-            }
-            Ok(format!("Process {} terminated successfully", pid))
+            sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+            Ok(format!("Process '{}' (PID {}) terminated successfully", proc_name, pid))
         } else {
             let err = String::from_utf8_lossy(&output.stderr);
             let out = String::from_utf8_lossy(&output.stdout);
@@ -267,7 +349,10 @@ pub fn kill_process(pid: u32) -> Result<String, String> {
             } else if !out.trim().is_empty() {
                 out.trim().to_string()
             } else {
-                format!("Failed to terminate process PID {}. It may require Administrator privileges or has already exited.", pid)
+                format!(
+                    "Failed to terminate process '{}' (PID {}). It may require Administrator privileges or has already exited.",
+                    proc_name, pid
+                )
             };
             Err(msg)
         }
@@ -289,19 +374,76 @@ pub fn kill_process(pid: u32) -> Result<String, String> {
 #[tauri::command]
 #[specta::specta]
 pub fn reveal_in_explorer(path: String) -> Result<String, String> {
+    let p = std::path::Path::new(&path);
+    if !p.exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
+    let canonical = p.canonicalize().map_err(|e| format!("Invalid path: {}", e))?;
+    let path_str = canonical.to_string_lossy();
+    let clean_path = path_str.strip_prefix(r"\\?\").unwrap_or(&path_str);
+
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
         let mut cmd = std::process::Command::new("explorer");
-        cmd.arg(format!("/select,{}", path));
-        cmd.creation_flags(0x08000000);
-        let _ = cmd.spawn();
-        Ok(format!("Opened {}", path))
+        cmd.arg(format!("/select,{}", clean_path));
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        let _ = cmd.spawn().map_err(|e| format!("Failed to launch explorer: {}", e))?;
+        Ok(format!("Opened {}", clean_path))
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        let _ = std::process::Command::new("xdg-open").arg(&path).spawn();
-        Ok(format!("Opened {}", path))
+        let mut cmd = std::process::Command::new("xdg-open");
+        cmd.arg(clean_path);
+        cmd.spawn().map_err(|e| format!("Failed to launch explorer: {}", e))?;
+        Ok(format!("Opened {}", clean_path))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_critical_process_detection() {
+        assert!(is_critical_process(0, "System Idle Process"));
+        assert!(is_critical_process(4, "System"));
+        assert!(is_critical_process(1234, "csrss.exe"));
+        assert!(is_critical_process(1234, "CSRSS"));
+        assert!(is_critical_process(1234, "svchost.exe"));
+        assert!(is_critical_process(1234, "services.exe"));
+        assert!(is_critical_process(1234, "lsass.exe"));
+        assert!(is_critical_process(1234, "explorer.exe"));
+        assert!(is_critical_process(1234, "winlogon.exe"));
+        assert!(is_critical_process(1234, "smss.exe"));
+
+        // Normal apps should not be critical
+        assert!(!is_critical_process(5000, "chrome.exe"));
+        assert!(!is_critical_process(5001, "node.exe"));
+        assert!(!is_critical_process(5002, "ollama.exe"));
+        assert!(!is_critical_process(5003, "neo4j"));
+    }
+
+    #[test]
+    fn test_url_validation_rejection() {
+        // Disallowed schemes
+        assert!(open_external_url("javascript:alert(1)".into()).is_err());
+        assert!(open_external_url("file:///C:/Windows/System32/calc.exe".into()).is_err());
+        assert!(open_external_url("data:text/html,<script>alert(1)</script>".into()).is_err());
+        assert!(open_external_url("cmd /c calc.exe".into()).is_err());
+        assert!(open_external_url("not a url".into()).is_err());
+    }
+
+    #[test]
+    fn test_ip_block_validation() {
+        // CIDR ranges and keywords should be rejected
+        assert!(block_remote_ip("192.168.1.0/24".into()).is_err());
+        assert!(block_remote_ip("any".into()).is_err());
+        assert!(block_remote_ip("10.0.0.1-10.0.0.50".into()).is_err());
+        assert!(block_remote_ip("invalid-ip".into()).is_err());
+        assert!(block_remote_ip("127.0.0.1".into()).is_err()); // loopback
+        assert!(block_remote_ip("0.0.0.0".into()).is_err()); // unspecified
+        assert!(block_remote_ip("224.0.0.1".into()).is_err()); // multicast
     }
 }

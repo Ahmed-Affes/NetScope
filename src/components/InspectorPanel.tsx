@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Sparkline } from "./Sparkline";
 import { commands, SocketInfo } from "../bindings";
+import { isCriticalProcess, getCriticalProcessReason } from "../utils/processSafety";
 
 export const InspectorPanel: React.FC = () => {
   const {
@@ -205,11 +206,24 @@ export const InspectorPanel: React.FC = () => {
                     exePath: selectedNode.exePath,
                   })
                 }
-                className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 hover:text-rose-200 font-semibold text-[11px] transition-all cursor-pointer shadow-sm"
-                title="Terminate process directly from NetScope with safety verification"
+                disabled={isCriticalProcess(selectedNode.pid, selectedNode.label)}
+                className={`w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded font-semibold text-[11px] transition-all shadow-sm ${
+                  isCriticalProcess(selectedNode.pid, selectedNode.label)
+                    ? "bg-slate-800/40 border border-slate-700/40 text-slate-500 cursor-not-allowed opacity-60"
+                    : "bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 hover:text-rose-200 cursor-pointer"
+                }`}
+                title={
+                  isCriticalProcess(selectedNode.pid, selectedNode.label)
+                    ? getCriticalProcessReason(selectedNode.pid, selectedNode.label)
+                    : "Terminate process directly from NetScope with safety verification"
+                }
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>End Process (Kill Task)</span>
+                <span>
+                  {isCriticalProcess(selectedNode.pid, selectedNode.label)
+                    ? "Protected System Process"
+                    : "End Process (Kill Task)"}
+                </span>
               </button>
             </div>
           )}
