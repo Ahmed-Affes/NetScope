@@ -131,7 +131,7 @@ impl ThreatEngine {
                 let proc_name = proc_name_opt.as_deref().unwrap_or("Unknown Process");
 
                 // Ignore Windows dynamic/ephemeral RPC ports (>= 49152) on system processes (svchost, System, lsass, etc.)
-                let is_system = pid_opt.map_or(false, |p| crate::commands::is_critical_process(p, proc_name))
+                let is_system = pid_opt.is_some_and(|p| crate::commands::is_critical_process(p, proc_name))
                     || crate::commands::is_critical_process(0, proc_name);
                 if *port >= 49152 && is_system {
                     continue;
