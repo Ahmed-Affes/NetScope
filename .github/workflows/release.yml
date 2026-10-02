@@ -47,27 +47,27 @@ jobs:
           tagName: v__VERSION__
           releaseName: "NetScope Desktop v__VERSION__"
           releaseBody: |
-            ### NetScope Desktop Release
-
-            Hardware-accelerated Windows network topology visualizer.
+            ### NetScope Desktop v__VERSION__
+            Real-time, hardware-accelerated Windows network topology visualizer and process security monitor.
 
             #### Download & Install:
-            - Download the `.exe` installer below and run it.
+            - Download `NetScope_x64-setup.exe` or `NetScope_x64_en-US.msi` below and run the installer.
 
-            #### What's included:
-            - Native Win32 TCP/UDP socket telemetry (processes, ports, states, PIDs)
-            - Local traffic correlation (client apps linked directly to local services like Ollama and Neo4j)
-            - Routing table gateway resolution (no `.1` heuristics)
-            - Rate-limited LAN discovery via Win32 `SendARP` and offline MAC OUI vendor lookup
-            - Overview vs All views with remote endpoint clustering
-            - Dynamic traffic legend with live connection counts and port pinning
-            - Plain-language process inspector with system process protection guardrails
-            - One-click endpoint firewall blocking via Windows Firewall
-            - Optional UAC elevation for kernel ETW per-connection bandwidth metering
-            - Hardened security with strict Content Security Policy and validated inputs
-
-            #### Code Signing:
-            - For instructions on verifying Authenticode signatures and configuring production certificates, see `docs/CODE_SIGNING.md`.
+            #### What NetScope Includes:
+            - **Real-Time Network Topology Map:** Hardware-accelerated (PixiJS WebGL) visual graph displaying all active network communication across your PC in real-time.
+            - **Process-Level Socket Attribution:** Instantly maps every open TCP/UDP socket and remote IP directly to its local executable, PID, and process tree.
+            - **Laptop Touchpad & Mouse Navigation:** Silky smooth pinch-to-zoom gestures, two-finger panning, discrete mouse wheel zooming, and on-screen zoom/center controls.
+            - **Smart Threat Detection & Filtering:** Evaluates listening ports, data exfiltration bursts, cryptomining connections, and threat nodes without noise from Windows internal ephemeral RPC ports.
+            - **Actionable Security Guidance:** Alerts provide plain-language instructions ("What to do"), one-click camera focus, and process termination controls.
+            - **Local Service Correlation:** Automatically correlates client applications directly to local microservices and AI engines (e.g. Ollama, Neo4j, Redis, local development servers).
+            - **LAN & Gateway Discovery:** Accurate routing table gateway detection and rate-limited ARP discovery with offline MAC OUI vendor lookups.
+            - **Interactive Port & Socket Inspector:** Live searchable and sortable table of all open ports, protocols, listening processes, and socket connection states.
+            - **Dynamic Legend & Quick Filters:** One-click protocol filtering (HTTPS, HTTP, DNS, SSH, UDP) with port pinning and one-click standard port restoration.
+            - **Built-In Speed & Latency Test:** In-app real-time latency (ping), jitter, and bandwidth diagnostics.
+            - **Host PC System Resource Telemetry:** Live monitor for CPU, RAM, GPU, Disk, and live network I/O throughput.
+            - **One-Click Firewall Rule Creation:** Block suspicious external IPs directly through Windows Defender Firewall.
+            - **Critical System Process Protection:** Guardrails prevent terminating vital Windows processes (`svchost.exe`, `System`, `lsass.exe`, `explorer.exe`).
+            - **In-App Auto-Update Notification:** Detects new GitHub releases and prompts users to update seamlessly.
           releaseDraft: false
           prerelease: false
 
